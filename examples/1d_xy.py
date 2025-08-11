@@ -1,0 +1,44 @@
+import sys
+from pathlib import Path
+
+# --- Add src directory to Python path for local imports ---
+project_root = Path(__file__).resolve().parent.parent
+src_path = project_root / 'src'
+if str(src_path) not in sys.path:
+    sys.path.insert(0, str(src_path))
+
+# Now that 'src' is in the path, we can import from preprocess.py.
+from preprocess import OpSum, preprocess
+
+def main():
+    """Example: 4-qubit Transverse-Field Ising Model pre-processing."""
+    print("--- Building Hamiltonian for 4-qubit Ising Model ---")
+    
+    # Define model parameters.
+    N_QUBITS = 8
+    J_coupling = 1.0
+    h_field = 0.5
+
+    # Build the Hamiltonian using OpSum.
+    op_sum = OpSum()
+    # Add interaction terms (-J * Z_i * Z_{i+1}) for sites 0, 1, 2
+    for i in range(N_QUBITS):
+        op_sum.add(-J_coupling, i, 'X', (i + 1) % N_QUBITS, 'X')
+        op_sum.add(-J_coupling, i, 'Y', (i + 1) % N_QUBITS, 'Y')
+        op_sum.add(-J_coupling, i, 'Z', (i + 1) % N_QUBITS, 'Z')
+        op_sum.add(-h_field, i, 'X')
+
+    # Define simulation parameters for the backend solver.
+    simulation_params = {
+        'beta': 10.0,
+        'tsteps': 100,
+        'steps': 100000,
+        'steps_per_measurement': 10,
+        'qmax': 5,
+        'nbins': 20
+    }
+
+    preprocess(op_sum, simulation_params)
+
+if __name__ == "__main__":
+    main()
