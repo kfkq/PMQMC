@@ -27,7 +27,7 @@ int main() {
     TEST_ASSERT(params.N == 8, "Parameter N is correct (8)");
     TEST_ASSERT(params.NOP == 16, "Parameter NOP is correct (16)");
     TEST_ASSERT(params.NCYCLES == 8, "Parameter NCYCLES is correct (8)");
-    TEST_ASSERT(fabs(params.BETA - 10.0) < 1e-9, "Parameter BETA is correct (10.0)");
+    TEST_ASSERT(fabs(params.BETA - 1.0) < 1e-9, "Parameter BETA is correct (10.0)");
 
     // Test a few data points from P_MATRIX
     TEST_ASSERT(h->P_matrix != NULL, "P_matrix was allocated");

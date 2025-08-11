@@ -5,8 +5,8 @@ CC = gcc
 CFLAGS = -Wall -Wextra -g -std=c99 -Isrc
 VPATH = src:tests
 
-# --- Main Program Files ---
-MAIN_SRCS = main.c hamiltonian.c state.c divdiff.c qmc_updates.c measurements.c utils.c datatypes.c
+# --- Main Program Files (currently empty until we add main.c) ---
+MAIN_SRCS = 
 MAIN_OBJS = $(MAIN_SRCS:.c=.o)
 MAIN_EXEC = pmrqmc
 
@@ -31,17 +31,25 @@ TEST_UTILS_SRCS = test_utils.c utils.c
 TEST_UTILS_OBJS = $(TEST_UTILS_SRCS:.c=.o)
 TEST_UTILS_EXEC = test_utils
 
+# NEW TEST FOR UPDATES
+TEST_UPDATES_SRCS = test_updates.c updates.c state.c hamiltonian.c divdiff.c datatypes.c utils.c
+TEST_UPDATES_OBJS = $(TEST_UPDATES_SRCS:.c=.o)
+TEST_UPDATES_EXEC = test_updates
+
 # =============================================================================
 # --- TARGETS ---
 # =============================================================================
 
-all: $(MAIN_EXEC)
+# The 'all' target is currently empty. To build the final program later:
+# make pmrqmc
+all:
+	@echo "No main program to build yet. Run 'make test' to check modules."
 
 $(MAIN_EXEC): $(MAIN_OBJS)
 	$(CC) $(CFLAGS) -o $(MAIN_EXEC) $(MAIN_OBJS) -lm
 
 # --- Unified Test Target ---
-test: $(TEST_DATATYPES_EXEC) $(TEST_DIVDIFF_EXEC) $(TEST_HAMILTONIAN_EXEC) $(TEST_STATE_EXEC) $(TEST_UTILS_EXEC)
+test: $(TEST_DATATYPES_EXEC) $(TEST_DIVDIFF_EXEC) $(TEST_HAMILTONIAN_EXEC) $(TEST_STATE_EXEC) $(TEST_UTILS_EXEC) $(TEST_UPDATES_EXEC)
 	@echo "\n========================================"
 	@echo "         RUNNING ALL TESTS"
 	@echo "========================================"
@@ -50,6 +58,7 @@ test: $(TEST_DATATYPES_EXEC) $(TEST_DIVDIFF_EXEC) $(TEST_HAMILTONIAN_EXEC) $(TES
 	./$(TEST_HAMILTONIAN_EXEC)
 	./$(TEST_STATE_EXEC)
 	./$(TEST_UTILS_EXEC)
+	./$(TEST_UPDATES_EXEC)
 	@echo "\n========================================"
 	@echo "      ALL TESTS PASSED SUCCESSFULLY"
 	@echo "========================================"
@@ -70,13 +79,17 @@ $(TEST_STATE_EXEC): $(TEST_STATE_OBJS)
 $(TEST_UTILS_EXEC): $(TEST_UTILS_OBJS)
 	$(CC) $(CFLAGS) -o $(TEST_UTILS_EXEC) $(TEST_UTILS_OBJS)
 
+$(TEST_UPDATES_EXEC): $(TEST_UPDATES_OBJS)
+	$(CC) $(CFLAGS) -o $(TEST_UPDATES_EXEC) $(TEST_UPDATES_OBJS) -lm
+
+
 # Generic rule to compile .c files into .o object files
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # Clean up all build files
 clean:
-	rm -f $(MAIN_OBJS) $(TEST_DATATYPES_OBJS) $(TEST_DIVDIFF_OBJS) $(TEST_HAMILTONIAN_OBJS) $(TEST_STATE_OBJS) $(TEST_UTILS_OBJS)
-	rm -f $(MAIN_EXEC) $(TEST_DATATYPES_EXEC) $(TEST_DIVDIFF_EXEC) $(TEST_HAMILTONIAN_EXEC) $(TEST_STATE_EXEC) $(TEST_UTILS_EXEC)
+	rm -f $(MAIN_OBJS) $(TEST_DATATYPES_OBJS) $(TEST_DIVDIFF_OBJS) $(TEST_HAMILTONIAN_OBJS) $(TEST_STATE_OBJS) $(TEST_UTILS_OBJS) $(TEST_UPDATES_OBJS)
+	rm -f $(MAIN_EXEC) $(TEST_DATATYPES_EXEC) $(TEST_DIVDIFF_EXEC) $(TEST_HAMILTONIAN_EXEC) $(TEST_STATE_EXEC) $(TEST_UTILS_EXEC) $(TEST_UPDATES_EXEC)
 
 .PHONY: all clean test
