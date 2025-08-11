@@ -1,5 +1,6 @@
 // File: tests/test_divdiff.c
 // Purpose: A standalone program to test the divdiff module.
+// VERSION: Corrected to test for factorial-scaled results and expanded with more points.
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,49 +17,102 @@
 
 // Helper to check for near-equality of doubles
 void check_close(double a, double b, const char* message) {
-    TEST_ASSERT(fabs(a - b) < 1e-9, message);
+    double diff = fabs(a - b);
+    double tolerance = 1e-9;
+    if (diff > tolerance) {
+        fprintf(stderr, "DEBUG: Expected %.8e, got %.8e, diff = %.8e\n", b, a, diff);
+    }
+    TEST_ASSERT(diff < tolerance, message);
 }
+
+// Recursive helper to calculate the expected UN-SCALED divided difference
+// This provides the ground truth for our tests.
+static double calculate_expected_naive(const double* energies, int n) {
+    if (n == 0) {
+        return exp(energies[0]);
+    }
+    // Note: energies+1 is a pointer to the start of the sub-array {E1, E2, ...}
+    double term1 = calculate_expected_naive(energies, n - 1);
+    double term2 = calculate_expected_naive(energies + 1, n - 1);
+    return (term1 - term2) / (energies[0] - energies[n]);
+}
+
 
 int main() {
     printf("\n--- Running Tests for OPTIMIZED DivDiff Module ---\n");
     divdiff_global_init();
 
-    // --- Test 1: Incremental Add/Remove Cycle ---
-    printf("--- Test 1: Incremental Add/Remove Cycle ---\n");
-    DivDiff* dd = divdiff_create(10, 50); // max_q=10, s_max=50
+    // --- Precompute factorials for the test ---
+    double factorials[11];
+    factorials[0] = 1.0;
+    for(int i = 1; i <= 10; ++i) {
+        factorials[i] = factorials[i-1] * i;
+    }
+
+    // --- Test 1: Longer Incremental Add/Remove Cycle ---
+    printf("\n--- Test 1: Longer Incremental Add/Remove Cycle ---\n");
+    DivDiff* dd = divdiff_create(10, 50);
     
-    double E0 = -1.5, E1 = -0.5, E2 = -1.0;
+    double energies[] = {-1.5, -0.5, -1.0, 0.5, -2.0};
     
-    // State 0: Empty
-    TEST_ASSERT(dd->current_len == 0, "Initial length is 0");
+    // --- Add elements one by one and check at each step ---
+    printf("--- Adding elements ---\n");
+    for (int i = 0; i < 5; ++i) {
+        char msg[100];
+        sprintf(msg, "d[E0...E%d] is correct after add", i);
+        
+        divdiff_add_element(dd, energies[i]);
+        
+        double expected_val = calculate_expected_naive(energies, i);
+        double actual_val = exex_to_double(dd->results[i]) / factorials[i];
+        
+        check_close(actual_val, expected_val, msg);
+    }
 
-    // State 1: Add E0
-    divdiff_add_element(dd, E0);
-    double expected_d0 = exp(E0);
-    check_close(exex_to_double(dd->results[0]), expected_d0, "d[E0] is correct");
+    // --- Remove elements one by one and check at each step ---
+    printf("\n--- Removing elements ---\n");
+    for (int i = 4; i >= 1; --i) {
+        char msg[100];
+        sprintf(msg, "d[E0...E%d] is correct after remove", i - 1);
 
-    // State 2: Add E1
-    divdiff_add_element(dd, E1);
-    double expected_d1 = (exp(E0) - exp(E1)) / (E0 - E1);
-    check_close(exex_to_double(dd->results[1]), expected_d1, "d[E0, E1] is correct after add");
+        divdiff_remove_last_element(dd);
+        TEST_ASSERT(dd->current_len == i, "Length is correct after remove");
 
-    // State 3: Add E2
-    divdiff_add_element(dd, E2);
-    double d01 = (exp(E0)-exp(E1))/(E0-E1);
-    double d12 = (exp(E1)-exp(E2))/(E1-E2);
-    double expected_d2 = (d01 - d12) / (E0 - E2);
-    check_close(exex_to_double(dd->results[2]), expected_d2, "d[E0, E1, E2] is correct after add");
+        double expected_val = calculate_expected_naive(energies, i - 1);
+        double actual_val = exex_to_double(dd->results[i - 1]) / factorials[i - 1];
 
-    // State 4: Remove E2
-    divdiff_remove_last_element(dd);
-    TEST_ASSERT(dd->current_len == 2, "Length is 2 after remove");
-    // The previous result should still be accessible and correct
-    check_close(exex_to_double(dd->results[1]), expected_d1, "d[E0, E1] is correct after remove");
+        check_close(actual_val, expected_val, msg);
+    }
 
     divdiff_free(dd);
-    printf("Incremental tests seem OK.\n\n");
+    printf("Longer incremental tests seem OK.\n\n");
+
+    // --- Test 2: Repeated Energies ---
+    printf("--- Test 2: Repeated Energies ---\n");
+    DivDiff* dd_rep = divdiff_create(10, 50);
+    double E0 = -1.5, E1 = -0.5;
+
+    divdiff_add_element(dd_rep, E0); // d[E0]
+    divdiff_add_element(dd_rep, E1); // d[E0, E1]
+    divdiff_add_element(dd_rep, E1); // d[E0, E1, E1]
+
+    // The formula for repeated points involves derivatives:
+    // d[z0, z1, z1] = (d[z0, z1] - d[z1, z1]) / (z0 - z1)
+    // where d[z1, z1] = f'(z1). For f(x)=exp(x), f'(x)=exp(x).
+    double d_01 = (exp(E0) - exp(E1)) / (E0 - E1);
+    double d_11 = exp(E1); // The derivative
+    double expected_d2_rep = (d_01 - d_11) / (E0 - E1);
+    
+    double actual_d2_rep = exex_to_double(dd_rep->results[2]) / factorials[2];
+    check_close(actual_d2_rep, expected_d2_rep, "d[E0, E1, E1] with repeated energy is correct");
+
+    divdiff_free(dd_rep);
+    printf("Repeated energy tests seem OK.\n\n");
+
 
     divdiff_global_cleanup();
-    printf("--- All Optimized DivDiff tests passed. ---\n");
+    printf("----------------------------------------\n");
+    printf("All Optimized DivDiff tests passed!\n");
+    printf("----------------------------------------\n");
     return 0;
 }

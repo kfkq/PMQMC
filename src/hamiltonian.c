@@ -6,16 +6,6 @@
 #include <ctype.h>
 #include "hamiltonian.h"
 
-// ... (global variable definitions and trim_whitespace are unchanged) ...
-bitset_t** P_matrix = NULL;
-bitset_t** cycles = NULL;
-complex_t* D0_coeff = NULL;
-bitset_t** D0_product = NULL;
-int D0_size = 0;
-int* D_sizes = NULL;
-complex_t** D_coeffs = NULL;
-bitset_t*** D_products = NULL;
-
 static char* trim_whitespace(char *str) {
     while (isspace((unsigned char)*str)) str++;
     if (*str == 0) return str;
@@ -25,12 +15,19 @@ static char* trim_whitespace(char *str) {
     return str;
 }
 
-
-int hamiltonian_load(const char* filename, SimParams* params) {
+Hamiltonian* hamiltonian_create_and_load(const char* filename, SimParams* params) {
     FILE *fp = fopen(filename, "r");
     if (!fp) {
         perror("Error opening input file");
-        return -1;
+        return NULL;
+    }
+
+    // Allocate the main Hamiltonian struct
+    Hamiltonian* h = (Hamiltonian*)calloc(1, sizeof(Hamiltonian));
+    if (!h) {
+        perror("Failed to allocate Hamiltonian struct");
+        fclose(fp);
+        return NULL;
     }
 
     char line_buffer[8192];
@@ -53,15 +50,16 @@ int hamiltonian_load(const char* filename, SimParams* params) {
     // Allocate Memory
     if (params->N <= 0) {
         fprintf(stderr, "Error: N must be > 0.\n");
+        hamiltonian_free(h, params); // Use the new free function for cleanup
         fclose(fp);
-        return -1;
+        return NULL;
     }
-    if (params->NOP > 0) P_matrix = calloc(params->NOP, sizeof(bitset_t*));
-    if (params->NCYCLES > 0) cycles = calloc(params->NCYCLES, sizeof(bitset_t*));
+    if (params->NOP > 0) h->P_matrix = calloc(params->NOP, sizeof(bitset_t*));
+    if (params->NCYCLES > 0) h->cycles = calloc(params->NCYCLES, sizeof(bitset_t*));
     if (params->NOP > 0) {
-        D_sizes = calloc(params->NOP, sizeof(int));
-        D_coeffs = calloc(params->NOP, sizeof(complex_t*));
-        D_products = calloc(params->NOP, sizeof(bitset_t**));
+        h->D_sizes = calloc(params->NOP, sizeof(int));
+        h->D_coeffs = calloc(params->NOP, sizeof(complex_t*));
+        h->D_products = calloc(params->NOP, sizeof(bitset_t**));
     }
 
     // Second Pass: Read data
@@ -76,7 +74,7 @@ int hamiltonian_load(const char* filename, SimParams* params) {
                     fprintf(stderr, "Error: Unexpected end of file in P_MATRIX block.\n");
                     break;
                 }
-                P_matrix[i] = bitset_create_from_string(trim_whitespace(line_buffer));
+                h->P_matrix[i] = bitset_create_from_string(trim_whitespace(line_buffer));
             }
         } else if (strcmp(line, "CYCLES_BEGIN") == 0) {
             for (int i = 0; i < params->NCYCLES; ++i) {
@@ -84,7 +82,7 @@ int hamiltonian_load(const char* filename, SimParams* params) {
                      fprintf(stderr, "Error: Unexpected end of file in CYCLES block.\n");
                     break;
                 }
-                cycles[i] = bitset_create_from_string(trim_whitespace(line_buffer));
+                h->cycles[i] = bitset_create_from_string(trim_whitespace(line_buffer));
             }
         }
         // ... (rest of the parsing logic for DIAGONAL and OFF_DIAGONAL is the same as before) ...
@@ -92,22 +90,22 @@ int hamiltonian_load(const char* filename, SimParams* params) {
             while (fgets(line_buffer, sizeof(line_buffer), fp) && strncmp(trim_whitespace(line_buffer), "DIAGONAL_TERM_END", 17) != 0) {
                 char* current_line = trim_whitespace(line_buffer);
                 if (strncmp(current_line, "SIZE", 4) == 0) {
-                    sscanf(current_line, "%*s %d", &D0_size);
-                    if (D0_size > 0) {
-                        D0_coeff = malloc(D0_size * sizeof(complex_t));
-                        D0_product = malloc(D0_size * sizeof(bitset_t*));
+                    sscanf(current_line, "%*s %d", &h->D0_size);
+                    if (h->D0_size > 0) {
+                        h->D0_coeff = malloc(h->D0_size * sizeof(complex_t));
+                        h->D0_product = malloc(h->D0_size * sizeof(bitset_t*));
                     }
                 } else if (strcmp(current_line, "COEFFS_BEGIN") == 0) {
-                    for (int i = 0; i < D0_size; ++i) {
+                    for (int i = 0; i < h->D0_size; ++i) {
                         fgets(line_buffer, sizeof(line_buffer), fp);
                         double real, imag;
                         sscanf(line_buffer, "%lf %lf", &real, &imag);
-                        D0_coeff[i] = real + imag * I;
+                        h->D0_coeff[i] = real + imag * I;
                     }
                 } else if (strcmp(current_line, "PRODUCTS_BEGIN") == 0) {
-                    for (int i = 0; i < D0_size; ++i) {
+                    for (int i = 0; i < h->D0_size; ++i) {
                         fgets(line_buffer, sizeof(line_buffer), fp);
-                        D0_product[i] = bitset_create_from_string(trim_whitespace(line_buffer));
+                        h->D0_product[i] = bitset_create_from_string(trim_whitespace(line_buffer));
                     }
                 }
             }
@@ -118,27 +116,27 @@ int hamiltonian_load(const char* filename, SimParams* params) {
                     fgets(line_buffer, sizeof(line_buffer), fp);
                     char* token = strtok(line_buffer, " \t\n");
                     for (int i = 0; i < params->NOP; ++i) {
-                        D_sizes[i] = atoi(token);
+                        h->D_sizes[i] = atoi(token);
                         token = strtok(NULL, " \t\n");
                     }
                 } else if (strcmp(current_line, "COEFFS_BEGIN") == 0) {
                     for (int i = 0; i < params->NOP; ++i) {
-                        D_coeffs[i] = malloc(D_sizes[i] * sizeof(complex_t));
+                        h->D_coeffs[i] = malloc(h->D_sizes[i] * sizeof(complex_t));
                         fgets(line_buffer, sizeof(line_buffer), fp);
                         char* token_real = strtok(line_buffer, " \t\n");
-                        for (int j = 0; j < D_sizes[i]; ++j) {
+                        for (int j = 0; j < h->D_sizes[i]; ++j) {
                             char* token_imag = strtok(NULL, " \t\n");
-                            D_coeffs[i][j] = atof(token_real) + atof(token_imag) * I;
+                            h->D_coeffs[i][j] = atof(token_real) + atof(token_imag) * I;
                             token_real = strtok(NULL, " \t\n");
                         }
                     }
                 } else if (strcmp(current_line, "PRODUCTS_BEGIN") == 0) {
                      for (int i = 0; i < params->NOP; ++i) {
-                        D_products[i] = malloc(D_sizes[i] * sizeof(bitset_t*));
+                        h->D_products[i] = malloc(h->D_sizes[i] * sizeof(bitset_t*));
                         fgets(line_buffer, sizeof(line_buffer), fp);
                         char* token = strtok(line_buffer, ";\n");
-                        for (int j = 0; j < D_sizes[i]; ++j) {
-                            D_products[i][j] = bitset_create_from_string(trim_whitespace(token));
+                        for (int j = 0; j < h->D_sizes[i]; ++j) {
+                            h->D_products[i][j] = bitset_create_from_string(trim_whitespace(token));
                             token = strtok(NULL, ";\n");
                         }
                     }
@@ -148,38 +146,41 @@ int hamiltonian_load(const char* filename, SimParams* params) {
     }
 
     fclose(fp);
-    return 0;
+    return h;
 }
 
-void hamiltonian_free(const SimParams* params) {
-    if (!params) return;
+void hamiltonian_free(Hamiltonian* h, const SimParams* params) {
+    if (!h || !params) return;
 
-    if (P_matrix) {
-        for (int i = 0; i < params->NOP; ++i) bitset_free(P_matrix[i]);
-        free(P_matrix);
+    if (h->P_matrix) {
+        for (int i = 0; i < params->NOP; ++i) bitset_free(h->P_matrix[i]);
+        free(h->P_matrix);
     }
-    if (cycles) {
-        for (int i = 0; i < params->NCYCLES; ++i) bitset_free(cycles[i]);
-        free(cycles);
+    if (h->cycles) {
+        for (int i = 0; i < params->NCYCLES; ++i) bitset_free(h->cycles[i]);
+        free(h->cycles);
     }
-    if (D0_product) {
-        for (int i = 0; i < D0_size; ++i) bitset_free(D0_product[i]);
-        free(D0_product);
+    if (h->D0_product) {
+        for (int i = 0; i < h->D0_size; ++i) bitset_free(h->D0_product[i]);
+        free(h->D0_product);
     }
-    free(D0_coeff);
+    free(h->D0_coeff);
 
-    if (D_sizes) {
+    if (h->D_sizes) {
         for (int i = 0; i < params->NOP; ++i) {
-            if (D_coeffs && D_coeffs[i]) free(D_coeffs[i]);
-            if (D_products && D_products[i]) {
-                for (int j = 0; j < D_sizes[i]; ++j) {
-                    bitset_free(D_products[i][j]);
+            if (h->D_coeffs && h->D_coeffs[i]) free(h->D_coeffs[i]);
+            if (h->D_products && h->D_products[i]) {
+                for (int j = 0; j < h->D_sizes[i]; ++j) {
+                    bitset_free(h->D_products[i][j]);
                 }
-                free(D_products[i]);
+                free(h->D_products[i]);
             }
         }
     }
-    free(D_sizes);
-    free(D_coeffs);
-    free(D_products);
+    free(h->D_sizes);
+    free(h->D_coeffs);
+    free(h->D_products);
+
+    // Finally, free the main struct
+    free(h);
 }

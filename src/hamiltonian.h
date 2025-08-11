@@ -7,40 +7,41 @@
 
 #include "datatypes.h"
 
-// --- Global Hamiltonian Data ---
-// These pointers will be allocated and filled by hamiltonian_load().
-// The 'extern' keyword means they are defined in hamiltonian.c but
-// can be accessed by any file that includes this header.
+// --- Hamiltonian Data Structure ---
+// This struct encapsulates all data loaded from the pmqmc.in file.
+typedef struct {
+    // Permutation operators and their cycles
+    bitset_t** P_matrix;
+    bitset_t** cycles;
 
-extern bitset_t** P_matrix; // Array of pointers to bitsets
-extern bitset_t** cycles;   // Array of pointers to bitsets
+    // Diagonal Term (D0)
+    int D0_size;
+    complex_t* D0_coeff;
+    bitset_t** D0_product;
 
-// Diagonal Term (D0)
-extern complex_t* D0_coeff;
-extern bitset_t** D0_product;
-extern int D0_size;
-
-// Off-Diagonal Terms (D_k)
-extern int* D_sizes;
-extern complex_t** D_coeffs;
-extern bitset_t*** D_products; // 3D array: [op_idx][term_idx][bitset_ptr]
-
+    // Off-Diagonal Terms (D_k)
+    int* D_sizes;
+    complex_t** D_coeffs;
+    bitset_t*** D_products;
+} Hamiltonian;
 
 // --- Public API Functions ---
 
 /**
- * @brief Loads all simulation parameters and Hamiltonian data from the input file.
- *        This function allocates all necessary memory for the global arrays.
+ * @brief Creates and loads a Hamiltonian struct from the input file.
+ *        This function allocates all necessary memory for the Hamiltonian.
  * @param filename The path to the input file (e.g., "pmqmc.in").
  * @param params A pointer to the SimParams struct to be filled.
- * @return 0 on success, -1 on failure.
+ * @return A pointer to the newly created Hamiltonian, or NULL on failure.
  */
-int hamiltonian_load(const char* filename, SimParams* params);
+Hamiltonian* hamiltonian_create_and_load(const char* filename, SimParams* params);
 
 /**
  * @brief Frees all memory that was dynamically allocated by hamiltonian_load().
  *        Should be called at the end of the program.
+ * @param h A pointer to the Hamiltonian to be freed.
+ * @param params A pointer to the SimParams struct.
  */
-void hamiltonian_free(const SimParams* params);
+void hamiltonian_free(Hamiltonian* h, const SimParams* params);
 
 #endif // HAMILTONIAN_H
