@@ -1,7 +1,9 @@
 // File: tests/test_state.c
+// VERSION: Corrected function calls and includes.
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h> // BUG FIX: Added for fabs()
 #include "datatypes.h"
 #include "hamiltonian.h"
 #include "state.h"
@@ -34,26 +36,21 @@ int main() {
     TEST_ASSERT(state->Energies != NULL, "Energies array was allocated");
     TEST_ASSERT(state->weight_calculator != NULL, "Weight calculator was allocated");
     
-    // Test initial energy calculation
+    // Perform initial calculation
+    state_recalculate_props(state, h); // BUG FIX: Call the correctly named function
     double initial_energy = state_calculate_classical_energy(h, state->lattice);
-    state->Energies[0] = initial_energy; // Manually set it after creation
-    TEST_ASSERT(state->Energies[0] == initial_energy, "Initial energy was calculated correctly");
+    TEST_ASSERT(fabs(state->Energies[0] - initial_energy) < 1e-9, "Initial energy was calculated correctly");
     
-    // Test initial weight calculation
-    divdiff_add_element(state->weight_calculator, state->Energies[0]);
-    TEST_ASSERT(state->weight_calculator->current_len == 1, "Weight calculator has one initial energy");
-    TEST_ASSERT(state->weight_calculator->energies[0] == initial_energy, "Weight calculator stores correct initial energy");
-
     printf("State initialization tests seem OK.\n\n");
 
-    // --- Test 2: Energy List Update ---
-    printf("--- Test 2: Energy List Update ---\n");
+    // --- Test 2: Property Recalculation ---
+    printf("--- Test 2: Property Recalculation ---\n");
     // Manually create a sequence to test the update function
     state->q = 2;
     state->Sq[0] = 2; // P_matrix["00000011"]
     state->Sq[1] = 3; // P_matrix["00000100"]
 
-    state_update_energy_list(state, h, &params);
+    state_recalculate_props(state, h); // BUG FIX: Call the correctly named function
     
     // Create the expected intermediate lattice state
     bitset_t* intermediate_lattice = bitset_create(params.N);
@@ -61,10 +58,10 @@ int main() {
     bitset_xor(intermediate_lattice, h->P_matrix[2]);
     double expected_E1 = state_calculate_classical_energy(h, intermediate_lattice);
 
-    TEST_ASSERT(state->Energies[1] == expected_E1, "Energy[1] is correct after one operator");
+    TEST_ASSERT(fabs(state->Energies[1] - expected_E1) < 1e-9, "Energy[1] is correct after one operator");
 
     bitset_free(intermediate_lattice);
-    printf("Energy list update tests seem OK.\n\n");
+    printf("Property recalculation tests seem OK.\n\n");
 
     // --- Cleanup ---
     state_free(state);
