@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include "datatypes.h"
 
@@ -98,15 +99,16 @@ void bitset_xor(bitset_t* dest, const bitset_t* src) {
 
 int bitset_count(const bitset_t* bs) {
     int count = 0;
-    for (int i = 0; i < bs->num_bytes; ++i) {
-        // A small optimization: use a lookup table or built-in for popcount if available
-        // For simplicity, we iterate through bits.
-        unsigned char byte = bs->bytes[i];
-        for (int j = 0; j < 8; ++j) {
-            if ((byte >> j) & 1) {
-                count++;
-            }
-        }
+    int i = 0;
+    // Process in 64-bit chunks for speed
+    for (; i + 7 < bs->num_bytes; i += 8) {
+        uint64_t chunk;
+        memcpy(&chunk, bs->bytes + i, 8);
+        count += __builtin_popcountll(chunk); // GCC/Clang intrinsic
+    }
+    // Process remaining bytes
+    for (; i < bs->num_bytes; ++i) {
+        count += __builtin_popcount(bs->bytes[i]);
     }
     return count;
 }

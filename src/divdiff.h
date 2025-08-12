@@ -25,8 +25,8 @@ typedef struct {
     int s;
     ExExFloat exp_mu;
     double* energies;
-    ExExFloat* h;
-    ExExFloat* ddd;
+    ExExFloat* h; // Internal coefficients for the Newton form of the interpolating polynomial
+    ExExFloat* ddd; // Table of scaled divided differences used for s > 1
     
     // Final results are stored here
     ExExFloat* results;

@@ -66,6 +66,9 @@ int main() {
     TEST_ASSERT(1, "All integers were in the expected [0, max) range");
     printf("Range check tests seem OK.\n\n");
 
+    // Re-seed with a fixed value for deterministic statistical tests
+    rng_init(42);
+
     // --- Test 3: Uniform Distribution of Integers ---
     printf("--- Test 3: Uniform Distribution of Integers ---\n");
     const int bins = 10;

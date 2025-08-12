@@ -30,7 +30,7 @@ def main():
 
     # Define simulation parameters for the backend solver.
     simulation_params = {
-        'beta': 10.0,
+        'beta': 1.0,
         'tsteps': 100,
         'steps': 100000,
         'steps_per_measurement': 10,
