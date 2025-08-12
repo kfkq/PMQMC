@@ -23,7 +23,7 @@ TEST_HAMILTONIAN_SRCS = test_hamiltonian.c hamiltonian.c datatypes.c
 TEST_HAMILTONIAN_OBJS = $(TEST_HAMILTONIAN_SRCS:.c=.o)
 TEST_HAMILTONIAN_EXEC = test_hamiltonian
 
-TEST_STATE_SRCS = test_state.c state.c hamiltonian.c divdiff.c datatypes.c
+TEST_STATE_SRCS = test_state.c state.c hamiltonian.c divdiff.c datatypes.c utils.c
 TEST_STATE_OBJS = $(TEST_STATE_SRCS:.c=.o)
 TEST_STATE_EXEC = test_state
 

@@ -42,6 +42,7 @@ Hamiltonian* hamiltonian_create_and_load(const char* filename, SimParams* params
                 if (strcmp(key, "NOP") == 0) sscanf(line_buffer, "%*s %d", &params->NOP);
                 if (strcmp(key, "NCYCLES") == 0) sscanf(line_buffer, "%*s %d", &params->NCYCLES);
                 if (strcmp(key, "BETA") == 0) sscanf(line_buffer, "%*s %lf", &params->BETA);
+                if (strcmp(key, "QMAX") == 0) sscanf(line_buffer, "%*s %d", &params->QMAX);
             }
             break;
         }

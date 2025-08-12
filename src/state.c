@@ -1,30 +1,39 @@
 // File: src/state.c
 // Purpose: Implements the logic for managing the QMC simulation state.
-// VERSION: Pre-computes beta_pow_factorial array.
+// VERSION: Corrected sign logic in energy/d_k calculations to match C++ reference.
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 #include "state.h"
+#include "utils.h"
 
-// (state_calculate_d_k function is unchanged)
+// --- Private Helper Functions (static) ---
+
+// Calculates d_k = <z | D_k | z> for a given configuration.
 static complex_t state_calculate_d_k(const Hamiltonian* h, const bitset_t* config, int k) {
     complex_t sum = 0.0;
     for (int i = 0; i < h->D_sizes[k]; ++i) {
-        int overlap = 0;
+        // The C++ reference calculates parity based on sites where the Z-string is 1
+        // and the lattice is 0. Let's replicate that logic exactly.
+        int parity = 0;
         for(int bit = 0; bit < config->num_bits; ++bit) {
-            if (bitset_get(config, bit) == 1 && bitset_get(h->D_products[k][i], bit) == 1) {
-                overlap++;
+            if (bitset_get(h->D_products[k][i], bit) == 1 && bitset_get(config, bit) == 0) {
+                parity++;
             }
         }
-        if (overlap % 2 != 0) {
-            sum -= h->D_coeffs[k][i];
-        } else {
+
+        // C++ logic: sum -= (2 * (parity % 2) - 1) * coeff
+        if (parity % 2 == 0) { // Even parity
             sum += h->D_coeffs[k][i];
+        } else { // Odd parity
+            sum -= h->D_coeffs[k][i];
         }
     }
     return sum;
 }
+
+// --- Public API Functions ---
 
 QMCState* state_create(const SimParams* params) {
     QMCState* state = (QMCState*)calloc(1, sizeof(QMCState));
@@ -43,7 +52,7 @@ QMCState* state_create(const SimParams* params) {
     }
 
     for (int i = 0; i < params->N; ++i) {
-        if (rand() % 2) {
+        if (rng_uniform_int(2)) {
             bitset_set(state->lattice, i);
         }
     }
@@ -51,11 +60,9 @@ QMCState* state_create(const SimParams* params) {
     state->q = 0;
     state->currD = 1.0 + 0.0 * I;
 
-    // Pre-compute the (-beta)^k / k! terms
     state->beta_pow_factorial[0] = exex_from_double(1.0);
     for (int k = 1; k < params->QMAX; ++k) {
-        ExExFloat temp = exex_multiply_double(state->beta_pow_factorial[k-1], -params->BETA / k);
-        state->beta_pow_factorial[k] = temp;
+        state->beta_pow_factorial[k] = exex_multiply_double(state->beta_pow_factorial[k-1], -params->BETA / k);
     }
 
     return state;
@@ -72,25 +79,26 @@ void state_free(QMCState* state) {
     }
 }
 
-// (state_calculate_classical_energy is unchanged)
 double state_calculate_classical_energy(const Hamiltonian* h, const bitset_t* config) {
     complex_t total_energy = 0.0;
     for (int i = 0; i < h->D0_size; ++i) {
-        int overlap = 0;
+        // Replicating C++ logic: count sites where Z-string is 1 and lattice is 0.
+        int parity = 0;
         for(int bit = 0; bit < config->num_bits; ++bit) {
-            if (bitset_get(config, bit) == 1 && bitset_get(h->D0_product[i], bit) == 1) {
-                overlap++;
+            if (bitset_get(h->D0_product[i], bit) == 1 && bitset_get(config, bit) == 0) {
+                parity++;
             }
         }
-        if (overlap % 2 != 0) {
-            total_energy -= h->D0_coeff[i];
-        } else {
+        
+        // C++ logic: sum -= (2 * (parity % 2) - 1) * coeff
+        if (parity % 2 == 0) { // Even parity
             total_energy += h->D0_coeff[i];
+        } else { // Odd parity
+            total_energy -= h->D0_coeff[i];
         }
     }
     return creal(total_energy);
 }
-
 
 void state_recalculate_props(QMCState* state, const Hamiltonian* h) {
     bitset_t* temp_lattice = bitset_create(h->P_matrix[0]->num_bits);
@@ -107,4 +115,22 @@ void state_recalculate_props(QMCState* state, const Hamiltonian* h) {
         state->Energies[i + 1] = state_calculate_classical_energy(h, temp_lattice);
     }
     bitset_free(temp_lattice);
+}
+
+void rebuild_divdiff_from_energies(QMCState* state, const SimParams* params) {
+    divdiff_free(state->weight_calculator);
+    state->weight_calculator = divdiff_create(params->QMAX, 500);
+    for (int i = 0; i <= state->q; ++i) {
+        divdiff_add_element(state->weight_calculator, -params->BETA * state->Energies[i]);
+    }
+}
+
+ExExFloat get_full_weight(const QMCState* state) {
+    if (state->q < 0 || state->q >= state->weight_calculator->current_len) {
+        return exex_from_double(0.0);
+    }
+    ExExFloat divdiff_part = state->weight_calculator->results[state->q];
+    ExExFloat beta_part = state->beta_pow_factorial[state->q];
+    ExExFloat combined = exex_multiply(divdiff_part, beta_part);
+    return exex_multiply_double(combined, creal(state->currD));
 }
