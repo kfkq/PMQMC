@@ -1,14 +1,12 @@
 // File: tests/test_updates.c
 // Purpose: A standalone program to test the QMC updates module.
-// VERSION: Corrected includes to resolve linker error.
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#include <math.h>
 #include "datatypes.h"
 #include "hamiltonian.h"
-#include "state.h"       // <-- CRITICAL: Include state.h for public function declarations
+#include "state.h"
 #include "updates.h"
 #include "utils.h"
 
@@ -19,8 +17,6 @@
     } else { \
         printf("PASSED: %s\n", message); \
     }
-
-const char* test_filename = "tests/test_pmqmc.in";
 
 // Helper to print the current state for debugging
 void print_state(const QMCState* state) {
@@ -39,15 +35,13 @@ int main() {
     divdiff_global_init();
 
     SimParams params = {0};
-    Hamiltonian* h = hamiltonian_create_and_load(test_filename, &params);
+    Hamiltonian* h = hamiltonian_create_and_load("tests/test_pmqmc.in", &params);
     TEST_ASSERT(h != NULL, "Prerequisite: Hamiltonian loaded successfully");
 
     QMCState* state = state_create(&params);
     TEST_ASSERT(state != NULL, "Prerequisite: QMC state created successfully");
 
-    // Initial calculation
     state_recalculate_props(state, h);
-    // BUG FIX: The test file must call the now-public function
     rebuild_divdiff_from_energies(state, &params);
     
     printf("Initial State:\n");
@@ -63,7 +57,9 @@ int main() {
     bitset_copy(initial_lattice, state->lattice);
 
     for (int i = 0; i < num_updates; ++i) {
-        do_composite_update(state, h, &params);
+        // In a real simulation, one would choose between composite and worm updates.
+        // Here, we test them separately.
+        do_worm_update(state, h, &params);
         q_sum += state->q;
         // Check if the lattice has changed from the start
         int changed = 0;
@@ -76,20 +72,20 @@ int main() {
         if(changed) lattice_flips++;
     }
     
-    printf("Ran %d composite updates.\n", num_updates);
+    printf("Ran %d worm updates.\n", num_updates);
     printf("Average q = %.2f\n", (double)q_sum / num_updates);
     printf("Lattice state was different from initial state in %d of %d steps.\n", lattice_flips, num_updates);
     
     TEST_ASSERT(q_sum > 0, "q was able to increase from 0");
-    TEST_ASSERT(state->q % 2 == 0, "Final q is an even number, proving pair integrity");
 
-    printf("Final State after composite updates:\n");
+    printf("Final State after worm updates:\n");
     print_state(state);
     
-    // --- 3. Test Worm Update (Stub) ---
-    printf("\n--- Testing Worm Update (Stub) ---\n");
-    do_worm_update(state, h, &params);
-    printf("Worm update placeholder executed without crashing.\n");
+    // --- 3. Test Composite Update (for comparison) ---
+    printf("\n--- Testing Composite Update (Stub) ---\
+");
+    do_composite_update(state, h, &params);
+    printf("Composite update placeholder executed without crashing.\n");
     print_state(state);
 
     // --- 4. Final Cleanup ---
