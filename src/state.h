@@ -14,6 +14,7 @@ typedef struct {
     bitset_t* lattice;
     int q;
     int* Sq;
+    Worm* worm;
     double* Energies;
     complex_t currD;
     DivDiff* weight_calculator;

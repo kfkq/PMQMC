@@ -5,10 +5,10 @@ CC = gcc
 CFLAGS = -Wall -Wextra -g -std=c99 -Isrc
 VPATH = src:tests
 
-# --- Main Program Files (currently empty until we add main.c) ---
-MAIN_SRCS = 
+# --- Main Program Files ---
+MAIN_SRCS = main.c datatypes.c divdiff.c hamiltonian.c state.c updates.c utils.c
 MAIN_OBJS = $(MAIN_SRCS:.c=.o)
-MAIN_EXEC = pmrqmc
+MAIN_EXEC = pmqmc
 
 # --- Test Programs ---
 TEST_DATATYPES_SRCS = test_datatypes.c datatypes.c
@@ -40,10 +40,8 @@ TEST_UPDATES_EXEC = test_updates
 # --- TARGETS ---
 # =============================================================================
 
-# The 'all' target is currently empty. To build the final program later:
-# make pmrqmc
-all:
-	@echo "No main program to build yet. Run 'make test' to check modules."
+# Default target: Build the main program
+all: $(MAIN_EXEC)
 
 $(MAIN_EXEC): $(MAIN_OBJS)
 	$(CC) $(CFLAGS) -o $(MAIN_EXEC) $(MAIN_OBJS) -lm

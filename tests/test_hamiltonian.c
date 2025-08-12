@@ -14,9 +14,7 @@
         printf("PASSED: %s\n", message); \
     }
 
-const char* test_filename = "tests/test_pmqmc.in";
-
-int main() {
+void test_hamiltonian_with_worm(const char* test_filename) {
     printf("\n--- Running Tests for Hamiltonian Module ---\n");
     
     SimParams params = {0};
@@ -27,8 +25,13 @@ int main() {
     TEST_ASSERT(params.N == 8, "Parameter N is correct (8)");
     TEST_ASSERT(params.NOP == 16, "Parameter NOP is correct (16)");
     TEST_ASSERT(params.NCYCLES == 8, "Parameter NCYCLES is correct (8)");
-    TEST_ASSERT(params.QMAX == 1000, "Parameter QMAX is correct (1000)");
     TEST_ASSERT(fabs(params.BETA - 1.0) < 1e-9, "Parameter BETA is correct (1.0)");
+    TEST_ASSERT(params.TSTEPS == 100, "Parameter TSTEPS is correct (100)");
+    TEST_ASSERT(params.STEPS == 100000, "Parameter STEPS is correct (100000)");
+    TEST_ASSERT(params.STEPS_PER_MEASUREMENT == 10, "Parameter STEPS_PER_MEASUREMENT is correct (10)");
+    TEST_ASSERT(params.QMAX == 1000, "Parameter QMAX is correct (5)");
+    TEST_ASSERT(params.NBINS == 20, "Parameter NBINS is correct (20)");
+    TEST_ASSERT(params.WORM == 1, "Parameter WORM is correct");
 
     // Test a few data points from P_MATRIX
     TEST_ASSERT(h->P_matrix != NULL, "P_matrix was allocated");
@@ -56,7 +59,12 @@ int main() {
 
     // Cleanup
     hamiltonian_free(h, &params);
+}
 
-    printf("--- All Hamiltonian tests passed. ---\n");
+int main() {
+    // Test with WORM = True
+    test_hamiltonian_with_worm("tests/test_pmqmc.in");
+    printf("--- All Hamiltonian tests passed ---\n");
+    
     return 0;
 }

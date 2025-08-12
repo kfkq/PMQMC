@@ -193,6 +193,7 @@ def preprocess(op_sum: OpSum, params: dict):
         f.write(f"  STEPS_PER_MEASUREMENT {params['steps_per_measurement']}\n")
         f.write(f"  QMAX      {params['qmax']}\n")
         f.write(f"  NBINS     {params['nbins']}\n")
+        f.write(f"  WORM      {params['worm_updates']}\n")
         f.write("SIMULATION_PARAMS_END\n\n")
 
         f.write("P_MATRIX_BEGIN\n")

@@ -34,8 +34,9 @@ def main():
         'tsteps': 100,
         'steps': 100000,
         'steps_per_measurement': 10,
-        'qmax': 5,
-        'nbins': 20
+        'qmax': 1000,
+        'nbins': 20,
+        'worm_updates': True
     }
 
     preprocess(op_sum, simulation_params)

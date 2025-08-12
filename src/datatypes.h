@@ -7,6 +7,15 @@
 
 #include <complex.h> // For standard C complex numbers
 
+// --- Dynamic Bitset Type ---
+// A flexible bitset that can handle an arbitrary number of bits (N),
+// determined at runtime.
+typedef struct {
+    unsigned char* bytes; // Dynamically allocated array to store bits
+    int num_bits;         // The total number of bits (e.g., N)
+    int num_bytes;        // The allocated size of the bytes array
+} bitset_t;
+
 // --- Configuration Parameters ---
 // This struct will hold all parameters read from pmqmc.in.
 // It is populated once during initialization.
@@ -20,17 +29,19 @@ typedef struct {
     int STEPS_PER_MEASUREMENT;
     int QMAX;
     int NBINS;
+    int WORM;  // Boolean: 1 for worm updates, 0 for composite updates
 } SimParams;
 
 
-// --- Dynamic Bitset Type ---
-// A flexible bitset that can handle an arbitrary number of bits (N),
-// determined at runtime.
+// --- Worm Data Structure ---
+// This struct holds the state of the worm algorithm.
 typedef struct {
-    unsigned char* bytes; // Dynamically allocated array to store bits
-    int num_bits;         // The total number of bits (e.g., N)
-    int num_bytes;        // The allocated size of the bytes array
-} bitset_t;
+    int active;      // Is the worm currently active?
+    int i, j;        // Positions of the worm's head and tail
+    int k, l;        // Operator indices at the head and tail
+    bitset_t* z_k;   // Spin configuration at the head
+    bitset_t* z_l;   // Spin configuration at the tail
+} Worm;
 
 
 // --- Standard Complex Number Type ---
