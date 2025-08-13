@@ -27,6 +27,7 @@ typedef struct {
     long long TSTEPS;
     long long STEPS;
     int STEPS_PER_MEASUREMENT;
+    long long SKIP_MEASUREMENTS;
     int QMAX;
     int NBINS;
     int WORM;  // Boolean: 1 for worm updates, 0 for composite updates

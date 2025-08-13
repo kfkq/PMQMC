@@ -42,9 +42,9 @@ Hamiltonian* hamiltonian_create_and_load(const char* filename, SimParams* params
                 if (strcmp(key, "NOP") == 0) sscanf(line_buffer, "%*s %d", &params->NOP);
                 if (strcmp(key, "NCYCLES") == 0) sscanf(line_buffer, "%*s %d", &params->NCYCLES);
                 if (strcmp(key, "BETA") == 0) sscanf(line_buffer, "%*s %lf", &params->BETA);
-                if (strcmp(key, "TSTEPS") == 0) sscanf(line_buffer, "%*s %lld", &params->TSTEPS);
                 if (strcmp(key, "STEPS") == 0) sscanf(line_buffer, "%*s %lld", &params->STEPS);
                 if (strcmp(key, "STEPS_PER_MEASUREMENT") == 0) sscanf(line_buffer, "%*s %d", &params->STEPS_PER_MEASUREMENT);
+                if (strcmp(key, "SKIP_MEASUREMENTS") == 0) sscanf(line_buffer, "%*s %lld", &params->SKIP_MEASUREMENTS);
                 if (strcmp(key, "QMAX") == 0) sscanf(line_buffer, "%*s %d", &params->QMAX);
                 if (strcmp(key, "NBINS") == 0) sscanf(line_buffer, "%*s %d", &params->NBINS);
                 if (strcmp(key, "WORM") == 0) {

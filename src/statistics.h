@@ -1,62 +1,31 @@
 // File: src/statistics.h
-// Purpose: Declares structures and functions for statistical analysis (binning).
+// Purpose: Declares functions for statistical analysis of raw QMC data.
 
 #ifndef STATISTICS_H
 #define STATISTICS_H
 
+#include <stdio.h> // Needed for the FILE type
 #include "datatypes.h"
 
-// Holds all data needed for binning analysis.
-typedef struct {
-    int nbins;
-    long long bin_length;
-    long long measurement_step;
-
-    // Accumulators for the current bin
-    double in_bin_sum_sgn;
-    double in_bin_sum_H;
-    double in_bin_sum_H2;
-    double in_bin_sum_q;
-
-    // Arrays of averages for each completed bin
-    double* bin_mean_sgn;
-    double* bin_mean_H;
-    double* bin_mean_H2;
-    double* bin_mean_q;
-
-    // Other statistics
-    int max_q;
-
-} Stats;
-
 /**
- * @brief Creates and initializes the statistics tracking object.
- * @param params The simulation parameters.
- * @return A pointer to the newly created Stats object, or NULL on failure.
+ * @brief Performs binning analysis on raw data arrays and writes the
+ *        formatted results to the provided file stream.
+ * @param output_stream An open, writable file stream (e.g., a file opened with "w").
+ * @param sgn_data Array of measured signs.
+ * @param H_data Array of measured <H> values.
+ * @param H2_data Array of measured <H^2> values.
+ * @param q_data Array of measured q values.
+ * @param num_points The number of data points in the arrays.
+ * @param params The simulation parameters (for NBINS, BETA, etc.).
  */
-Stats* stats_create(const SimParams* params);
-
-/**
- * @brief Frees all memory associated with the Stats object.
- * @param stats The Stats object to free.
- */
-void stats_free(Stats* stats);
-
-/**
- * @brief Accumulates new measurements into the current bin.
- *        Handles bin completion automatically.
- * @param stats The statistics object.
- * @param sgn The sign of the current configuration's weight.
- * @param H_val The measured value of <H>.
- * @param H2_val The measured value of <H^2>.
- */
-void stats_accumulate(Stats* stats, double sgn, double H_val, double H2_val, int q_val);
-
-/**
- * @brief Performs the final statistical analysis and prints the results.
- * @param stats The statistics object.
- * @param params The simulation parameters.
- */
-void stats_finalize_and_print(const Stats* stats, const SimParams* params);
+void perform_analysis_and_write_results(
+    FILE* output_stream,
+    const double* sgn_data,
+    const double* H_data,
+    const double* H2_data,
+    const int* q_data,
+    long long num_points,
+    const SimParams* params
+);
 
 #endif // STATISTICS_H

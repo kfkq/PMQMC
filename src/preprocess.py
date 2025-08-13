@@ -155,10 +155,10 @@ def z_to_bit(z_list, n_qubit):
 def preprocess(op_sum: OpSum, params: dict):
     """
     Takes an OpSum object and simulation parameters, and writes them to a
-    robust, block-structured input file named 'pmqmc.in'.
+    robust, block-structured input file named 'hamiltonian.in'.
     """
     # The output filename is now fixed.
-    output_file = 'pmqmc.in'
+    output_file = 'hamiltonian.in'
     
     # --- Core logic remains the same ---
     n_qubit, ps_list, coeff_zs, _ = Hamiltonian(op_sum)
@@ -188,9 +188,9 @@ def preprocess(op_sum: OpSum, params: dict):
         f.write(f"  NOP       {nop}\n")
         f.write(f"  NCYCLES   {ncycles}\n")
         f.write(f"  BETA      {params['beta']}\n")
-        f.write(f"  TSTEPS    {params['tsteps']}\n")
         f.write(f"  STEPS     {params['steps']}\n")
         f.write(f"  STEPS_PER_MEASUREMENT {params['steps_per_measurement']}\n")
+        f.write(f"  SKIP_MEASUREMENTS     {params['skip_analysis']}\n")
         f.write(f"  QMAX      {params['qmax']}\n")
         f.write(f"  NBINS     {params['nbins']}\n")
         f.write(f"  WORM      {params['worm_updates']}\n")

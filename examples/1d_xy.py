@@ -31,12 +31,12 @@ def main():
     # Define simulation parameters for the backend solver.
     simulation_params = {
         'beta': 1.0,
-        'tsteps': 100,
-        'steps': 100000,
+        'steps': 1_000_000,
         'steps_per_measurement': 10,
-        'qmax': 1000,
-        'nbins': 20,
-        'worm_updates': True
+        'skip_analysis' : 100,
+        'qmax': 30,
+        'nbins': 200,
+        'worm_updates': False
     }
 
     preprocess(op_sum, simulation_params)
