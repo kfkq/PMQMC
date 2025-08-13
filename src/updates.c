@@ -8,6 +8,20 @@
 #include "updates.h"
 #include "utils.h"
 
+// Warning function for when QMAX is reached
+static void warn_qmax_reached(const char* update_name) {
+    static int warning_count = 0;
+    static const int max_warnings = 10; // Limit number of warnings printed
+    
+    if (warning_count < max_warnings) {
+        fprintf(stderr, "Warning: QMAX reached during %s update.\n", update_name);
+        warning_count++;
+        if (warning_count == max_warnings) {
+            fprintf(stderr, "Warning: Suppressing further QMAX warnings.\n");
+        }
+    }
+}
+
 // --- UNCOMMENT THIS LINE TO ENABLE DEBUGGING OUTPUT ---
 // #define DEBUG_UPDATES
 
@@ -170,6 +184,9 @@ static int attempt_pair_insertion_deletion(QMCState* state, const SimParams* par
         printf("[DEBUG] Pair insertion at %d (op %d), metro=%.2f\n", m, op_to_insert, *metro_factor);
 #endif
         return 1;
+    } else if (choice == 1 && state->q + 2 > params->QMAX) {
+        // Warn when QMAX would be exceeded
+        warn_qmax_reached("pair insertion");
     }
     return 0;
 }
@@ -238,6 +255,7 @@ static int attempt_cycle_completion(QMCState* state, const Hamiltonian* h, const
     if (state->q + p - r > params->QMAX) {
         bitset_free(S_mask);
         bitset_free(P_mask);
+        warn_qmax_reached("cycle completion");
         return 0;
     }
 
@@ -379,6 +397,8 @@ void do_worm_update(QMCState* state, const Hamiltonian* h, const SimParams* para
                 state->worm->i = i_new;
                 state->worm->k = k_new;
                 move_made = 1;
+            } else {
+                warn_qmax_reached("worm propagation");
             }
         }
     } else {
@@ -397,6 +417,8 @@ void do_worm_update(QMCState* state, const Hamiltonian* h, const SimParams* para
                 state->worm->i = i;
                 state->worm->j = i;
                 move_made = 1;
+            } else {
+                warn_qmax_reached("worm creation");
             }
         }
     }
