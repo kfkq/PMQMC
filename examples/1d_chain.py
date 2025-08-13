@@ -33,9 +33,7 @@ def main():
     'beta': 1.0,
     'steps': 1_000_000,
     'steps_per_measurement': 10,
-    'skip_measurements' : 10000, # Measurements to discard in analysis
     'qmax': 30,
-    'nbins': 200,
     'worm_updates': False,
     
     'default_measurements': [

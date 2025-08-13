@@ -15,7 +15,7 @@ The project uses a three-stage workflow for robust and reproducible scientific a
 *   **GNU Make:** For building the C executable.
 *   **Python 3 & Libraries:** For preprocessing and analysis.
     ```bash
-    pip install numpy h5py
+    pip install numpy h5py matplotlib
     ```
 *   **HDF5 C Library:** Required for compiling the C simulator.
     *   On Debian/Ubuntu: `sudo apt-get install libhdf5-dev`

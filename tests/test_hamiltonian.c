@@ -29,7 +29,6 @@ void test_hamiltonian_with_worm(const char* test_filename) {
     TEST_ASSERT(params.STEPS == 1000000, "Parameter STEPS is correct (1000000)");
     TEST_ASSERT(params.STEPS_PER_MEASUREMENT == 10, "Parameter STEPS_PER_MEASUREMENT is correct (10)");
     TEST_ASSERT(params.QMAX == 1000, "Parameter QMAX is correct (1000)");
-    TEST_ASSERT(params.NBINS == 150, "Parameter NBINS is correct (150)");
     TEST_ASSERT(params.WORM == 0, "Parameter WORM is correct");
 
     // Test a few data points from P_MATRIX
