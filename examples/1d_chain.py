@@ -11,7 +11,7 @@ if str(src_path) not in sys.path:
 from preprocess import OpSum, preprocess
 
 def main():
-    """Example: 4-qubit Transverse-Field Ising Model pre-processing."""
+    """Example: 8-qubit Transverse-Field Heisenberg spin chain pre-processing."""
     print("--- Building Hamiltonian for 4-qubit Ising Model ---")
     
     # Define model parameters.
@@ -21,7 +21,7 @@ def main():
 
     # Build the Hamiltonian using OpSum.
     op_sum = OpSum()
-    # Add interaction terms (-J * Z_i * Z_{i+1}) for sites 0, 1, 2
+    # Add interaction terms (-J * S_i . S_{i+1}) for sites 0, 1, 2
     for i in range(N_QUBITS):
         op_sum.add(-J_coupling, i, 'X', (i + 1) % N_QUBITS, 'X')
         op_sum.add(-J_coupling, i, 'Y', (i + 1) % N_QUBITS, 'Y')

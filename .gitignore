@@ -1,2 +1,7 @@
 .aider*
 .env
+settings.json
+references_cpp/
+examples/hamiltonian.in
+examples/raw.dat
+examples/results.dat

@@ -5,7 +5,7 @@
 CC = gcc
 # CFLAGS: -Wall (all warnings), -Wextra (more warnings), -g (debug symbols), 
 # -std=c99 (language standard), -Isrc (include path for headers)
-CFLAGS = -Wall -Wextra -g -std=c99 -Isrc
+CFLAGS = -Wall -Wextra -O3 -std=c99 -Isrc
 # VPATH tells make where to find source files from src/ and tests/
 VPATH = src:tests
 
