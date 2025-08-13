@@ -24,13 +24,17 @@ typedef struct {
     int NOP;
     int NCYCLES;
     double BETA;
-    long long TSTEPS;
     long long STEPS;
     int STEPS_PER_MEASUREMENT;
     long long SKIP_MEASUREMENTS;
     int QMAX;
     int NBINS;
-    int WORM;  // Boolean: 1 for worm updates, 0 for composite updates
+    int WORM;
+
+    // Flags for default measurements ---
+    int MEASURE_H;
+    int MEASURE_H2;
+    int MEASURE_Z_MAGNETIZATION;
 } SimParams;
 
 

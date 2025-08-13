@@ -57,6 +57,22 @@ Hamiltonian* hamiltonian_create_and_load(const char* filename, SimParams* params
         }
     }
 
+    // --- Second Pass for Default Measurements ---
+    rewind(fp); // Go back to the start of the file
+    while (fgets(line_buffer, sizeof(line_buffer), fp)) {
+        if (strncmp(line_buffer, "DEFAULT_MEASUREMENTS_BEGIN", 26) == 0) {
+            while (fgets(line_buffer, sizeof(line_buffer), fp) && strncmp(line_buffer, "DEFAULT_MEASUREMENTS_END", 24) != 0) {
+                char* key = trim_whitespace(line_buffer);
+                if (key[0] == '#' || key[0] == '\0') continue;
+                
+                if (strcmp(key, "H") == 0) params->MEASURE_H = 1;
+                if (strcmp(key, "H2") == 0) params->MEASURE_H2 = 1;
+                if (strcmp(key, "Z_MAGNETIZATION") == 0) params->MEASURE_Z_MAGNETIZATION = 1;
+            }
+            break; // Found the block, no need to search further
+        }
+    }
+
     // Allocate Memory
     if (params->N <= 0) {
         fprintf(stderr, "Error: N must be > 0.\n");

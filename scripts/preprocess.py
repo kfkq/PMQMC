@@ -190,11 +190,17 @@ def preprocess(op_sum: OpSum, params: dict):
         f.write(f"  BETA      {params['beta']}\n")
         f.write(f"  STEPS     {params['steps']}\n")
         f.write(f"  STEPS_PER_MEASUREMENT {params['steps_per_measurement']}\n")
-        f.write(f"  SKIP_MEASUREMENTS     {params['skip_analysis']}\n")
+        f.write(f"  SKIP_MEASUREMENTS     {params.get('skip_measurements', 0)}\n")
         f.write(f"  QMAX      {params['qmax']}\n")
         f.write(f"  NBINS     {params['nbins']}\n")
-        f.write(f"  WORM      {params['worm_updates']}\n")
+        f.write(f"  WORM      {params.get('worm_updates', False)}\n")
         f.write("SIMULATION_PARAMS_END\n\n")
+
+        if 'default_measurements' in params and params['default_measurements']:
+            f.write("DEFAULT_MEASUREMENTS_BEGIN\n")
+            for obs in params['default_measurements']:
+                f.write(f"  {obs}\n")
+            f.write("DEFAULT_MEASUREMENTS_END\n\n")
 
         f.write("P_MATRIX_BEGIN\n")
         for p in ps_list[1:] if d0 else ps_list:

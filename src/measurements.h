@@ -23,4 +23,12 @@ double measure_H(const QMCState* state, const SimParams* params);
  */
 double measure_H2(const QMCState* state, const SimParams* params);
 
+/**
+ * @brief Measures the instantaneous value of the Z-magnetization.
+ * @param state The current QMC state.
+ * @param params The simulation parameters (for N).
+ * @return The instantaneous magnetization value.
+ */
+double measure_Z_magnetization(const QMCState* state, const SimParams* params);
+
 #endif // MEASUREMENTS_H

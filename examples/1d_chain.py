@@ -3,7 +3,7 @@ from pathlib import Path
 
 # --- Add src directory to Python path for local imports ---
 project_root = Path(__file__).resolve().parent.parent
-src_path = project_root / 'src'
+src_path = project_root / 'scripts'
 if str(src_path) not in sys.path:
     sys.path.insert(0, str(src_path))
 
@@ -30,14 +30,19 @@ def main():
 
     # Define simulation parameters for the backend solver.
     simulation_params = {
-        'beta': 1.0,
-        'steps': 1_000_000,
-        'steps_per_measurement': 10,
-        'skip_analysis' : 100,
-        'qmax': 30,
-        'nbins': 200,
-        'worm_updates': False
-    }
+    'beta': 1.0,
+    'steps': 1_000_000,
+    'steps_per_measurement': 10,
+    'skip_measurements' : 10000, # Measurements to discard in analysis
+    'qmax': 30,
+    'nbins': 200,
+    'worm_updates': False,
+    
+    'default_measurements': [
+        "H",
+        "H2",
+        "Z_MAGNETIZATION"
+    ]}
 
     preprocess(op_sum, simulation_params)
 

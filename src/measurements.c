@@ -65,3 +65,11 @@ double measure_H2(const QMCState* state, const SimParams* params) {
 
     return R;
 }
+
+double measure_Z_magnetization(const QMCState* state, const SimParams* params) {
+    // Magnetization is defined as (N_up - N_down) / N_total
+    // N_up = number of 1s, N_down = number of 0s
+    // N_up - N_down = count - (N - count) = 2*count - N
+    double count = (double)bitset_count(state->lattice);
+    return (2.0 * count - (double)params->N) / (double)params->N;
+}

@@ -1,13 +1,23 @@
 # File: Makefile
-# Description: Builds the PMR-QMC simulator and the separate statistics analyzer.
+# Description: Builds the PM-QMC simulator
 
 # Compiler and Flags
 CC = gcc
+# TODO: Edit these paths based on your system's HDF5 installation.
+# Example for Debian/Ubuntu:
+HDF5_INCLUDE_DIR = /usr/include/hdf5/serial
+HDF5_LIB_DIR     = /usr/lib/x86_64-linux-gnu/hdf5/serial
+# Example for macOS with Homebrew:
+# HDF5_INCLUDE_DIR = /opt/homebrew/include
+# HDF5_LIB_DIR     = /opt/homebrew/lib
+# ------------------------------------
 # CFLAGS: -Wall (all warnings), -Wextra (more warnings), -g (debug symbols), 
 # -std=c99 (language standard), -Isrc (include path for headers)
-CFLAGS = -Wall -Wextra -O3 -std=c99 -Isrc
+CFLAGS = -Wall -Wextra -O3 -std=c99 -Isrc -I$(HDF5_INCLUDE_DIR)
 # VPATH tells make where to find source files from src/ and tests/
 VPATH = src:tests
+# Linker Flags for HDF5 ---
+LDFLAGS = -L$(HDF5_LIB_DIR) -lhdf5
 
 # =============================================================================
 # --- FILE DEFINITIONS ---
@@ -17,11 +27,6 @@ VPATH = src:tests
 MAIN_SRCS = main.c datatypes.c divdiff.c hamiltonian.c state.c updates.c utils.c measurements.c
 MAIN_OBJS = $(MAIN_SRCS:.c=.o)
 MAIN_EXEC = pmqmc
-
-# --- Statistics Analyzer Program ---
-ANALYZER_SRCS = analyzer.c statistics.c hamiltonian.c datatypes.c
-ANALYZER_OBJS = $(ANALYZER_SRCS:.c=.o)
-ANALYZER_EXEC = statistics
 
 # --- Unit Test Programs ---
 TEST_DATATYPES_SRCS = test_datatypes.c datatypes.c
@@ -58,10 +63,7 @@ all: $(MAIN_EXEC) $(ANALYZER_EXEC)
 
 # --- Main Executable Build Rules ---
 $(MAIN_EXEC): $(MAIN_OBJS)
-	$(CC) $(CFLAGS) -o $@ $(MAIN_OBJS) -lm
-
-$(ANALYZER_EXEC): $(ANALYZER_OBJS)
-	$(CC) $(CFLAGS) -o $@ $(ANALYZER_OBJS) -lm
+	$(CC) $(CFLAGS) -o $@ $(MAIN_OBJS) -lm $(LDFLAGS)
 
 # --- Unified Test Target ---
 # Builds and runs all individual unit tests.
@@ -108,9 +110,9 @@ $(TEST_UPDATES_EXEC): $(TEST_UPDATES_OBJS)
 # Clean up all build files and generated data
 clean:
 	rm -f *.o
-	rm -f $(MAIN_EXEC) $(ANALYZER_EXEC)
+	rm -f $(MAIN_EXEC)
 	rm -f $(TEST_DATATYPES_EXEC) $(TEST_DIVDIFF_EXEC) $(TEST_HAMILTONIAN_EXEC) $(TEST_STATE_EXEC) $(TEST_UTILS_EXEC) $(TEST_UPDATES_EXEC)
-	rm -f raw.dat results.dat hamiltonian.in
+	rm -f raw_data.h5 results.dat hamiltonian.in
 
 # Declare targets that are not files
-.PHONY: all clean test
+.PHONY: all clean test analyze
