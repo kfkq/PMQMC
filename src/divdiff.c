@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
+#include <limits.h>
 #include "divdiff.h"
 
 // --- Static Globals & Helpers ---
@@ -15,7 +16,7 @@ static const int EXTRA_LEN = 10; // For buffer in h array
 
 // Forward declaration for internal functions
 static void divdiff_recalculate_all(DivDiff* dd, int force_s, double force_mu);
-static void divdiff_add_element_internal(DivDiff* dd, double new_energy, int force_s, double force_mu);
+static void divdiff_add_element_internal(DivDiff* dd, double new_energy, int force_s, double force_mu, int in_recalculation);
 
 
 // Helper to calculate the mean of an array
@@ -138,8 +139,15 @@ void divdiff_free(DivDiff* dd) {
 // --- Core O(q) Calculation Functions ---
 
 // This is the internal worker function, a direct translation of the C++ AddElement
-static void divdiff_add_element_internal(DivDiff* dd, double new_energy, int force_s, double force_mu) {
+static void divdiff_add_element_internal(DivDiff* dd, double new_energy, int force_s, double force_mu, int in_recalculation) {
     int n = dd->current_len;
+    
+    // Check bounds before proceeding
+    if (n >= dd->max_len) {
+        fprintf(stderr, "Error: Attempting to add element beyond max_len in divdiff_add_element_internal\n");
+        return;
+    }
+    
     int N_h_buffer = dd->max_len + EXTRA_LEN;
     ExExFloat curr;
 
@@ -170,8 +178,9 @@ static void divdiff_add_element_internal(DivDiff* dd, double new_energy, int for
         // The result for a single point is 0! * exp(E0)
         dd->results[0] = exex_from_double(exp(dd->energies[0]));
 
-    } else if (s_changed(dd) || dd->current_len >= dd->max_len) {
+    } else if (!in_recalculation && (s_changed(dd) || dd->current_len >= dd->max_len)) {
         // Fallback Case: State is unstable, recalculate everything
+        // Only do this if we're not already in a recalculation to prevent infinite recursion
         divdiff_recalculate_all(dd, force_s, force_mu);
     } else {
         // Fast Path: O(q) incremental update
@@ -200,7 +209,7 @@ static void divdiff_add_element_internal(DivDiff* dd, double new_energy, int for
 
 // Public-facing add function
 void divdiff_add_element(DivDiff* dd, double new_energy) {
-    divdiff_add_element_internal(dd, new_energy, 0, 0.0);
+    divdiff_add_element_internal(dd, new_energy, 0, 0.0, 0);
 }
 
 void divdiff_remove_last_element(DivDiff* dd) {
@@ -223,8 +232,18 @@ void divdiff_remove_last_element(DivDiff* dd) {
 static void divdiff_recalculate_all(DivDiff* dd, int force_s, double force_mu) {
     int len = dd->current_len;
     if (len == 0) return;
+    
+    // Check for potential integer overflow
+    if (len > (int)(INT_MAX / sizeof(double))) {
+        fprintf(stderr, "Error: Too many elements in divdiff_recalculate_all, would cause integer overflow\n");
+        return;
+    }
 
     double* temp_energies = (double*)malloc(len * sizeof(double));
+    if (!temp_energies) {
+        fprintf(stderr, "Error: Failed to allocate memory in divdiff_recalculate_all\n");
+        return;
+    }
     memcpy(temp_energies, dd->energies, len * sizeof(double));
 
     dd->current_len = 0;
@@ -238,7 +257,7 @@ static void divdiff_recalculate_all(DivDiff* dd, int force_s, double force_mu) {
     double mu_new = (force_mu == 0) ? calculate_mean(temp_energies, len) : force_mu;
 
     for (int i = 0; i < len; ++i) {
-        divdiff_add_element_internal(dd, temp_energies[i], s_new, mu_new);
+        divdiff_add_element_internal(dd, temp_energies[i], s_new, mu_new, 1);
     }
 
     free(temp_energies);

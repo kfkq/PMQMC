@@ -43,21 +43,19 @@ This creates the `pmqmc` executable.
 
 **3. Run Simulation**
 
-Execute the simulator. It will automatically find `hamiltonian.in`.
+Execute the simulator inside the folder where `hamiltonian.in` exist. It will automatically find `hamiltonian.in`.
 ```bash
-./pmqmc
+../pmqmc
 ```
 This runs the simulation and generates a compressed `raw_data.h5` file.
 
 **4. Analyze Results**
 
-Execute the Python analysis script. It automatically finds the necessary files.
+Execute the Python analysis script inside the folder where `raw_data.h5` exist. It automatically finds the necessary files.
 ```bash
-python3 scripts/postprocess.py
+python3 ../scripts/postprocess.py
 ```
 
-make analyze
-```
 This script will print the final means and standard errors to the console and save them in `default_obs.dat`.
 
 ### HDF5 Data Structure
