@@ -2,7 +2,7 @@
 # Description: Builds the PM-QMC simulator
 
 # Compiler and Flags
-CC = gcc
+CC = mpicc
 # TODO: Edit these paths based on your system's HDF5 installation.
 # Example for Debian/Ubuntu:
 HDF5_INCLUDE_DIR = /usr/include/hdf5/serial
@@ -16,15 +16,15 @@ HDF5_LIB_DIR     = /usr/lib/x86_64-linux-gnu/hdf5/serial
 CFLAGS = -Wall -Wextra -O3 -std=c99 -Isrc -I$(HDF5_INCLUDE_DIR)
 # VPATH tells make where to find source files from src/ and tests/
 VPATH = src:tests
-# Linker Flags for HDF5 ---
-LDFLAGS = -L$(HDF5_LIB_DIR) -lhdf5
+# Linker Flags for HDF5 and MPI ---
+LDFLAGS = -L$(HDF5_LIB_DIR) -lhdf5 -lm
 
 # =============================================================================
 # --- FILE DEFINITIONS ---
 # =============================================================================
 
 # --- Main Simulation Program ---
-MAIN_SRCS = main.c datatypes.c divdiff.c hamiltonian.c state.c updates.c utils.c measurements.c io.c
+MAIN_SRCS = main.c datatypes.c divdiff.c hamiltonian.c state.c updates.c utils.c measurements.c io.c processing.c
 MAIN_OBJS = $(MAIN_SRCS:.c=.o)
 MAIN_EXEC = pmqmc
 

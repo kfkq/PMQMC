@@ -12,14 +12,15 @@ The project uses a three-stage workflow for robust and reproducible scientific a
 ### Requirements
 
 *   **C Compiler:** GCC or Clang.
+*   **MPI Implementation:** OpenMPI or MPICH for parallel execution.
 *   **GNU Make:** For building the C executable.
 *   **Python 3 & Libraries:** For preprocessing and analysis.
     ```bash
     pip install numpy h5py matplotlib
     ```
 *   **HDF5 C Library:** Required for compiling the C simulator.
-    *   On Debian/Ubuntu: `sudo apt-get install libhdf5-dev`
-    *   On macOS (Homebrew): `brew install hdf5`
+    *   On Debian/Ubuntu: `sudo apt-get install libhdf5-dev libhdf5-serial-dev`
+    *   On macOS (Homebrew): `brew install hdf5 open-mpi`
 
 ### Usage
 
@@ -43,10 +44,19 @@ This creates the `pmqmc` executable.
 
 **3. Run Simulation**
 
-Execute the simulator inside the folder where `hamiltonian.in` exist. It will automatically find `hamiltonian.in`.
+Execute the simulator inside the folder where `hamiltonian.in` exists. It will automatically find `hamiltonian.in`.
+
 ```bash
-../pmqmc
+mpirun -n <number_of_processes> ./pmqmc
 ```
+
+In MPI mode, each process will:
+- Use a different random seed based on its rank
+- Display its progress on a separate line that updates in real-time
+- Write its raw data to `raw_mpi_data/dataXX.h5` (where XX is the rank)
+- After all processes complete, rank 0 will combine all data into `raw_data.h5`
+- Temporary files in `raw_mpi_data/` will be automatically cleaned up
+
 This runs the simulation and generates a compressed `raw_data.h5` file.
 
 **4. Analyze Results**
