@@ -24,7 +24,7 @@ LDFLAGS = -L$(HDF5_LIB_DIR) -lhdf5
 # =============================================================================
 
 # --- Main Simulation Program ---
-MAIN_SRCS = main.c datatypes.c divdiff.c hamiltonian.c state.c updates.c utils.c measurements.c
+MAIN_SRCS = main.c datatypes.c divdiff.c hamiltonian.c state.c updates.c utils.c measurements.c io.c
 MAIN_OBJS = $(MAIN_SRCS:.c=.o)
 MAIN_EXEC = pmqmc
 

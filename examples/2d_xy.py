@@ -15,7 +15,7 @@ def main():
     print("--- Building Hamiltonian for 4x4 2D XY Model ---")
     
     # --- Define model parameters ---
-    L = 6  # The lattice is L x L
+    L = 3  # The lattice is L x L
     N_QUBITS = L * L
     J_coupling = 1.0  # Ferromagnetic XY interaction
     h_field = -0.8     # Magnetic field strength in the Z direction
