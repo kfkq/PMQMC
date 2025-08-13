@@ -44,9 +44,10 @@ QMCState* state_create(const SimParams* params) {
     state->Energies = malloc((params->QMAX + 1) * sizeof(double));
     state->weight_calculator = divdiff_create(params->QMAX, 500);
     state->beta_pow_factorial = malloc(params->QMAX * sizeof(ExExFloat));
+    state->factorials = malloc(params->QMAX * sizeof(double));
     state->worm = calloc(1, sizeof(Worm));
 
-    if (!state->lattice || !state->Sq || !state->Energies || !state->weight_calculator || !state->beta_pow_factorial || !state->worm) {
+    if (!state->lattice || !state->Sq || !state->Energies || !state->weight_calculator || !state->beta_pow_factorial || !state->factorials || !state->worm) {
         fprintf(stderr, "Error: Failed to allocate memory for QMC state internals.\n");
         state_free(state);
         return NULL;
@@ -74,6 +75,11 @@ QMCState* state_create(const SimParams* params) {
         state->beta_pow_factorial[k] = exex_multiply_double(state->beta_pow_factorial[k-1], -params->BETA / k);
     }
 
+    state->factorials[0] = 1.0;
+    for (int k = 1; k < params->QMAX; ++k) {
+        state->factorials[k] = state->factorials[k-1] * k;
+    }
+
     return state;
 }
 
@@ -84,6 +90,7 @@ void state_free(QMCState* state) {
         free(state->Energies);
         divdiff_free(state->weight_calculator);
         free(state->beta_pow_factorial);
+        free(state->factorials);
         if (state->worm) {
             bitset_free(state->worm->z_k);
             bitset_free(state->worm->z_l);

@@ -97,6 +97,16 @@ void bitset_xor(bitset_t* dest, const bitset_t* src) {
     }
 }
 
+void bitset_and(bitset_t* dest, const bitset_t* src) {
+    if (dest == NULL || src == NULL || dest->num_bits != src->num_bits) {
+        fprintf(stderr, "Error: bitset_and requires valid, same-sized bitsets.\n");
+        return;
+    }
+    for (int i = 0; i < dest->num_bytes; ++i) {
+        dest->bytes[i] &= src->bytes[i];
+    }
+}
+
 int bitset_count(const bitset_t* bs) {
     int count = 0;
     int i = 0;

@@ -38,6 +38,82 @@ static void free_backup(QMCState_Backup* backup) {
     bitset_free(backup->lattice);
 }
 
+// --- NEW HELPER FUNCTIONS FOR CYCLE COMPLETION ---
+
+// Checks for the absence of repetitions in a sequence of length r
+static int no_repetition_check(const int* sequence, int r) {
+    for (int i = 0; i < r; ++i) {
+        for (int j = 0; j < i; ++j) {
+            if (sequence[j] == sequence[i]) {
+                return 0; // Repetition found
+            }
+        }
+    }
+    return 1; // No repetitions
+}
+
+// Finds cycles containing all operators in a subsequence and returns one randomly.
+// Also returns the total count of found cycles via the found_cycles_count pointer.
+static int find_random_cycle(const int* subseq, int r, const Hamiltonian* h, const SimParams* params, int lmin, int lmax, int* found_cycles_count) {
+    if (params->NCYCLES == 0) {
+        *found_cycles_count = 0;
+        return -1;
+    }
+
+    bitset_t* candidates = bitset_create(params->NCYCLES);
+    // Start with all cycles as candidates
+    for (int i = 0; i < params->NCYCLES; ++i) bitset_set(candidates, i);
+
+    // Filter by ANDing with the P_in_cycles for each operator in the subsequence
+    // NOTE: This requires a P_in_cycles table, which is not in your current hamiltonian.h
+    // We will build it on the fly here for now. A more optimized approach would pre-compute it.
+    for (int i = 0; i < r; ++i) {
+        int op_idx = subseq[i];
+        bitset_t* p_in_cycles_mask = bitset_create(params->NCYCLES);
+        for (int c_idx = 0; c_idx < params->NCYCLES; ++c_idx) {
+            if (bitset_get(h->cycles[c_idx], op_idx)) {
+                bitset_set(p_in_cycles_mask, c_idx);
+            }
+        }
+        bitset_and(candidates, p_in_cycles_mask);
+        bitset_free(p_in_cycles_mask);
+    }
+
+    // Further filter by cycle length
+    for (int i = 0; i < params->NCYCLES; ++i) {
+        if (bitset_get(candidates, i)) {
+            int len = bitset_count(h->cycles[i]);
+            if (len < lmin || len > lmax) {
+                // Flip the bit to 0 to remove it from candidates
+                bitset_flip(candidates, i);
+            }
+        }
+    }
+
+    *found_cycles_count = bitset_count(candidates);
+    if (*found_cycles_count == 0) {
+        bitset_free(candidates);
+        return -1;
+    }
+
+    // Pick a random one from the valid candidates
+    int choice = rng_uniform_int(*found_cycles_count);
+    int selected_cycle_idx = -1;
+    int count = 0;
+    for (int i = 0; i < params->NCYCLES; ++i) {
+        if (bitset_get(candidates, i)) {
+            if (count == choice) {
+                selected_cycle_idx = i;
+                break;
+            }
+            count++;
+        }
+    }
+
+    bitset_free(candidates);
+    return selected_cycle_idx;
+}
+
 // --- The 7 Individual Update Moves (as static functions) ---
 
 static int attempt_classical_flip(QMCState* state, const SimParams* params) {
@@ -116,53 +192,106 @@ static int attempt_block_swap(QMCState* state, const Hamiltonian* h) {
 }
 
 static int attempt_cycle_completion(QMCState* state, const Hamiltonian* h, const SimParams* params, double* metro_factor) {
-    if (params->NCYCLES == 0) return 0;
+    // This is a simplified version of the C++ code's cycle completion with gaps (u=0).
+    // The full version uses a geometric distribution for 'u' (gaps).
+    const int u = 0; 
     
-    // Pick random cycle
-    int cycle_idx = rng_uniform_int(params->NCYCLES);
-    bitset_t* cycle = h->cycles[cycle_idx];
-    int cycle_len = bitset_count(cycle);
-    if (cycle_len == 0) return 0;
+    // Define cycle search parameters (as in mainQMC.hpp)
+    // A more robust implementation would pre-calculate these and store them.
+    const int cycle_min_len = 2; // Simplification
+    const int cycle_max_len = params->NOP; // Simplification
+    const int rmin = (cycle_min_len - 1) / 2;
+    const int rmax = (cycle_max_len + 1) / 2;
 
-    // Pick random position m in Sq to insert
-    int m = rng_uniform_int(state->q + 1);
+    if (state->q < u + rmin) return 0;
 
-    // Insert the cycle's operators at m (shuffle order)
-    if (state->q + cycle_len > params->QMAX) return 0;
+    // 1. Pick subsequence length 'r'
+    int inv_pr_A = fmin(rmax, state->q - u) - rmin + 1;
+    if (inv_pr_A <= 0) return 0;
+    int r = rng_uniform_int(inv_pr_A) + rmin;
+
+    // 2. Pick subsequence S
+    int m = rng_uniform_int(state->q - (r + u) + 1);
+    int* Sq_subseq = &state->Sq[m]; // This is our S
+
+    // For simplicity, we are not shuffling here as the C++ code does.
+    // The shuffle is mainly for the 'gaps' part (u>0).
+    if (!no_repetition_check(Sq_subseq, r)) return 0;
+
+    // 3. Find a suitable cycle
+    int lmin = 2 * r - 1;
+    int lmax = 2 * r + 1;
+    int found_cycles_A = 0;
+    int cycle_idx = find_random_cycle(Sq_subseq, r, h, params, lmin, lmax, &found_cycles_A);
+
+    if (cycle_idx == -1) return 0;
+
+    // 4. Propose the move
+    bitset_t* S_mask = bitset_create(params->NOP);
+    for (int i = 0; i < r; ++i) bitset_set(S_mask, Sq_subseq[i]);
+
+    bitset_t* P_mask = bitset_create(params->NOP);
+    bitset_copy(P_mask, h->cycles[cycle_idx]);
+    bitset_xor(P_mask, S_mask); // P = C XOR S
+
+    int p = bitset_count(P_mask);
+    if (state->q + p - r > params->QMAX) {
+        bitset_free(S_mask);
+        bitset_free(P_mask);
+        return 0;
+    }
+
+    // Find cycles for the reverse move (for the Metropolis factor)
+    int* S_prime = malloc(p * sizeof(int));
+    int s_prime_idx = 0;
+    for(int i=0; i<params->NOP; ++i) if(bitset_get(P_mask, i)) S_prime[s_prime_idx++] = i;
+    
+    int lmin_rev = 2 * p - 1;
+    int lmax_rev = 2 * p + 1;
+    int found_cycles_B = 0;
+    find_random_cycle(S_prime, p, h, params, lmin_rev, lmax_rev, &found_cycles_B);
+    if (found_cycles_B == 0) { // Reverse move is impossible
+        free(S_prime);
+        bitset_free(S_mask);
+        bitset_free(P_mask);
+        return 0; // Cannot guarantee detailed balance
+    }
+
+    // 5. Apply the move to Sq
     int old_q = state->q;
-    state->q += cycle_len;
+    int new_q = old_q + p - r;
+    int* new_Sq = malloc(new_q * sizeof(int));
+    
+    // Copy part before subsequence
+    memcpy(new_Sq, state->Sq, m * sizeof(int));
+    // Copy the new operators (S')
+    memcpy(&new_Sq[m], S_prime, p * sizeof(int));
+    // Copy part after subsequence
+    memcpy(&new_Sq[m + p], &state->Sq[m + r], (old_q - m - r) * sizeof(int));
+    
+    // Replace old Sq with new one
+    memcpy(state->Sq, new_Sq, new_q * sizeof(int));
+    state->q = new_q;
+    free(new_Sq);
 
-    // Shift existing Sq to make space
-    memmove(&state->Sq[m + cycle_len], &state->Sq[m], (old_q - m) * sizeof(int));
+    // 6. Calculate the full Metropolis factor
+    double wfactor = (double)found_cycles_A / (double)found_cycles_B;
+    wfactor *= state->factorials[p] / state->factorials[r];
+    
+    int inv_pr_B = fmin(rmax, state->q - u) - rmin + 1;
+    wfactor *= (double)inv_pr_A / (double)inv_pr_B;
+    
+    *metro_factor = wfactor;
 
-    // Add cycle ops (random order)
-    int insert_pos = m;
-    for (int i = 0; i < params->NOP; ++i) {
-        if (bitset_get(cycle, i)) {
-            state->Sq[insert_pos++] = i;
-        }
-    }
-
-    // Shuffle the inserted block (Fisher-Yates)
-    for (int i = m + cycle_len - 1; i > m; --i) {
-        int j = m + rng_uniform_int(i - m + 1);
-        int temp = state->Sq[i];
-        state->Sq[i] = state->Sq[j];
-        state->Sq[j] = temp;
-    }
-
-    // Apply the inserted operators to lattice (for energy recalc)
-    for (int i = m; i < m + cycle_len; ++i) {
-        bitset_xor(state->lattice, h->P_matrix[state->Sq[i]]);
-    }
-
-    // Metropolis factor: From paper, depends on cycle prob (e.g., 1/Ncycles * other factors)
-    *metro_factor = 1.0 / (double)params->NCYCLES;  // Simplified; adjust per detailed balance
+    // Cleanup
+    free(S_prime);
+    bitset_free(S_mask);
+    bitset_free(P_mask);
 
 #ifdef DEBUG_UPDATES
-    printf("[DEBUG] Cycle completion: idx=%d, len=%d, at m=%d, metro=%.2f\n", cycle_idx, cycle_len, m, *metro_factor);
+    printf("[DEBUG] Cycle completion: r=%d, p=%d, wfactor=%.4f\n", r, p, wfactor);
 #endif
-    return 1;
+    return 1; // Move was successfully proposed
 }
 
 // Worm updates (two variants from paper)

@@ -108,6 +108,13 @@ int bitset_get(const bitset_t* bs, int pos);
 void bitset_xor(bitset_t* dest, const bitset_t* src);
 
 /**
+ * @brief Performs a bitwise AND operation (dest &= src).
+ * @param dest The bitset that will be modified.
+ * @param src The bitset to AND with.
+ */
+void bitset_and(bitset_t* dest, const bitset_t* src);
+
+/**
  * @brief Counts the number of set bits (1s) in the bitset.
  * @param bs The bitset to count.
  * @return The total number of set bits.

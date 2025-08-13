@@ -19,6 +19,7 @@ typedef struct {
     complex_t currD;
     DivDiff* weight_calculator;
     ExExFloat* beta_pow_factorial;
+    double* factorials;
 } QMCState;
 
 // --- Public API Functions ---

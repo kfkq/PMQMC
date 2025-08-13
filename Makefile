@@ -6,7 +6,7 @@ CFLAGS = -Wall -Wextra -g -std=c99 -Isrc
 VPATH = src:tests
 
 # --- Main Program Files ---
-MAIN_SRCS = main.c datatypes.c divdiff.c hamiltonian.c state.c updates.c utils.c
+MAIN_SRCS = main.c datatypes.c divdiff.c hamiltonian.c state.c updates.c utils.c measurements.c statistics.c
 MAIN_OBJS = $(MAIN_SRCS:.c=.o)
 MAIN_EXEC = pmqmc
 
