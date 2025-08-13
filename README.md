@@ -1,71 +1,74 @@
-# PM-QMC
+# PMQMC in C
 
 ### Introduction
 
 A high-performance C implementation of the Permutation Matrix Representation Quantum Monte Carlo (PMR-QMC) algorithm for simulating arbitrary spin-1/2 systems.
 
-This project uses a two-stage workflow:
-1.  `pmqmc`: A fast simulator that dumps raw measurement data to a compressed HDF5 file (`raw_data.h5`).
-2.  `statistics`: A lightweight post-processor that reads the HDF5 file, performs binning analysis, and writes the final physical observables to `results.dat`.
+The project uses a three-stage workflow for robust and reproducible scientific analysis:
+1.  **Preprocessing:** A Python script converts a user-defined Hamiltonian into the required C input format (`hamiltonian.in`).
+2.  **Simulation:** A fast C program (`pmqmc`) runs the simulation and saves raw data to a compressed HDF5 file (`raw_data.h5`).
+3.  **Post-Processing:** A flexible Python script (`scripts/postprocess.py`) inspects the raw data, automatically determines optimal binning from the autocorrelation time, performs a Jackknife analysis, and writes the final results to `default_obs.dat`.
 
 ### Requirements
 
 *   **C Compiler:** GCC or Clang.
-*   **GNU Make:** For building the executables.
-*   **Python 3 & NumPy:** For generating the Hamiltonian input file.
+*   **GNU Make:** For building the C executable.
+*   **Python 3 & Libraries:** For preprocessing and analysis.
     ```bash
-    pip install numpy
+    pip install numpy h5py
     ```
-*   **HDF5 C Library:** Required for compiling and running.
+*   **HDF5 C Library:** Required for compiling the C simulator.
     *   On Debian/Ubuntu: `sudo apt-get install libhdf5-dev`
     *   On macOS (Homebrew): `brew install hdf5`
 
 ### Usage
 
-The workflow consists of three steps:
+**1. Configure and Preprocess**
 
-**1. Generate Input File**
-
-Edit a Python script (e.g., `examples/1d_chain.py`) to define your model and simulation parameters. Then, run it to generate the input file:
+Edit a Python script (e.g., `examples/1d_chain.py`) to define your model, simulation parameters, and which observables to measure. Then, run it:
 ```bash
-python3 examples/1d_chain.py```
-This creates `hamiltonian.in`, which includes a `DEFAULT_MEASUREMENTS_BEGIN` block to control which observables are calculated.
+python3 examples/1d_chain.py
+```
+This creates the `hamiltonian.in` file.
 
-**2. Compile & Run Simulation**
+**2. Compile**
 
-First, edit the `Makefile` to set the `HDF5_INCLUDE_DIR` and `HDF5_LIB_DIR` paths for your system. Then, compile:
+**Important:** Before compiling for the first time, you must edit the `Makefile` and set the `HDF5_INCLUDE_DIR` and `HDF5_LIB_DIR` variables to match the paths of your HDF5 installation.
+
+Then, compile the C simulator:
 ```bash
 make
 ```
-Run the simulation. It will automatically find `hamiltonian.in`:
+This creates the `pmqmc` executable.
+
+**3. Run Simulation**
+
+Execute the simulator. It will automatically find `hamiltonian.in`.
 ```bash
 ./pmqmc
 ```
 This runs the simulation and generates a compressed `raw_data.h5` file.
 
-**3. Analyze Results**
+**4. Analyze Results**
 
-Run the analyzer. It automatically finds `hamiltonian.in` and `raw_data.h5`:
+Execute the Python analysis script. It automatically finds the necessary files.
 ```bash
-./statistics
+python3 scripts/postprocess.py
 ```
-This reads the raw data, performs the analysis, and writes the final results to `results.dat`.
+
+make analyze
+```
+This script will print the final means and standard errors to the console and save them in `default_obs.dat`.
 
 ### HDF5 Data Structure
 
-The output data is stored in `raw_data.h5`. You can inspect this file with tools like `h5dump` or load it easily in Python (`h5py`), MATLAB, etc. The internal structure is as follows:
+The output data is stored in `raw_data.h5`. You can inspect this file with tools like `h5dump` or load it easily in Python, MATLAB, etc. The internal structure is as follows:
 
-*   **/measurements** `(Dataset)`: A 1D array of compound data structures containing the time-series data. Each row has the following fields:
-    *   `sgn` (double): The sign of the configuration weight (1.0 or -1.0).
+*   **/measurements** `(Dataset)`: A table containing the time-series data. Each row has the following fields (if measured):
+    *   `sgn` (double): The sign of the configuration weight.
     *   `H` (double): The instantaneous value of the energy, `<H>`.
-    *   `H2` (double): The instantaneous value of the energy squared, `<H^2>`.
+    *   `H2` (double): The instantaneous value of `<H^2>`.
     *   `Z_mag` (double): The instantaneous value of the Z-magnetization.
     *   `q` (int): The length of the operator sequence.
 
-*   **/measurements** `(Attributes)`: The dataset contains metadata attributes that store the key simulation parameters used for the run:
-    *   `N` (int): Number of qubits.
-    *   `BETA` (double): Inverse temperature.
-    *   `STEPS` (long long): Total number of Monte Carlo updates.
-    *   `SKIP_MEASUREMENTS` (long long): Number of initial measurements to discard during analysis.
-    *   `NBINS` (int): Number of bins to use for error analysis.
-    *   ...and other parameters from the input file.
+*   **/measurements** `(Attributes)`: The dataset is annotated with metadata, storing the key simulation parameters used for the run (e.g., `BETA`, `N`, `STEPS`, `SKIP_MEASUREMENTS`, etc.).
