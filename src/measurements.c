@@ -4,13 +4,21 @@
 
 #include <math.h>
 #include "measurements.h"
+#include "datatypes.h" // For ExExFloat etc.
+
+// Note: The 'params' argument is unused in these functions but is kept
+// for consistency with a potential future interface where it might be needed.
+// This avoids breaking function signatures if more parameters are required later.
 
 double measure_H(const QMCState* state, const SimParams* params) {
-    if (state->q < 0 || state->q >= state->weight_calculator->current_len) {
-        return 0.0; // Should not happen in a valid state
+    (void)params; // Suppress unused parameter warning
+
+    if (state->q < 0 || !state->weight_calculator || state->q >= state->weight_calculator->current_len) {
+        return 0.0;
     }
 
-    // The first term is E_q, which is d->z[q] / (-beta) in the C++ code
+    // The first term is E_q, which is d->z[q] / (-beta) in the C++ code.
+    // In our C code, Energies[q] already holds this value.
     double R = state->Energies[state->q];
 
     if (state->q > 0) {
@@ -19,16 +27,20 @@ double measure_H(const QMCState* state, const SimParams* params) {
             state->weight_calculator->results[state->q - 1],
             state->weight_calculator->results[state->q]
         );
-        R += exex_to_double(ratio) * state->q;
+        R += exex_to_double(ratio) * state->q / (-params->BETA);
     }
 
     return R;
 }
 
 double measure_H2(const QMCState* state, const SimParams* params) {
-    if (state->q < 0 || state->q >= state->weight_calculator->current_len) {
+    (void)params; // Suppress unused parameter warning
+
+    if (state->q < 0 || !state->weight_calculator || state->q >= state->weight_calculator->current_len) {
         return 0.0;
     }
+
+    const double neg_beta = -params->BETA;
 
     // Term 1: E_q^2
     double R = state->Energies[state->q] * state->Energies[state->q];
@@ -39,7 +51,7 @@ double measure_H2(const QMCState* state, const SimParams* params) {
             state->weight_calculator->results[state->q - 1],
             state->weight_calculator->results[state->q]
         );
-        R += (state->Energies[state->q] + state->Energies[state->q - 1]) * exex_to_double(ratio1) * state->q;
+        R += (state->Energies[state->q] + state->Energies[state->q - 1]) * exex_to_double(ratio1) * state->q / neg_beta;
     }
 
     if (state->q > 1) {
@@ -48,7 +60,7 @@ double measure_H2(const QMCState* state, const SimParams* params) {
             state->weight_calculator->results[state->q - 2],
             state->weight_calculator->results[state->q]
         );
-        R += exex_to_double(ratio2) * state->q * (state->q - 1);
+        R += exex_to_double(ratio2) * state->q * (state->q - 1) / (neg_beta * neg_beta);
     }
 
     return R;

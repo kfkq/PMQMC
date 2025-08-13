@@ -24,8 +24,10 @@ Stats* stats_create(const SimParams* params) {
     stats->bin_mean_sgn = (double*)calloc(stats->nbins, sizeof(double));
     stats->bin_mean_H = (double*)calloc(stats->nbins, sizeof(double));
     stats->bin_mean_H2 = (double*)calloc(stats->nbins, sizeof(double));
+    stats->bin_mean_q = (double*)calloc(stats->nbins, sizeof(double));
+    stats->max_q = 0;
 
-    if (!stats->bin_mean_sgn || !stats->bin_mean_H || !stats->bin_mean_H2) {
+    if (!stats->bin_mean_sgn || !stats->bin_mean_H || !stats->bin_mean_H2 || !stats->bin_mean_q) {
         stats_free(stats);
         return NULL;
     }
@@ -37,15 +39,21 @@ void stats_free(Stats* stats) {
         free(stats->bin_mean_sgn);
         free(stats->bin_mean_H);
         free(stats->bin_mean_H2);
+        free(stats->bin_mean_q);
         free(stats);
     }
 }
 
-void stats_accumulate(Stats* stats, double sgn, double H_val, double H2_val) {
+void stats_accumulate(Stats* stats, double sgn, double H_val, double H2_val, int q_val) {
     stats->in_bin_sum_sgn += sgn;
     stats->in_bin_sum_H += H_val * sgn;
     stats->in_bin_sum_H2 += H2_val * sgn;
+    stats->in_bin_sum_q += (double)q_val * sgn;
     stats->measurement_step++;
+
+    if (q_val > stats->max_q) {
+        stats->max_q = q_val;
+    }
 
     if (stats->measurement_step > 0 && stats->measurement_step % stats->bin_length == 0) {
         int bin_idx = (stats->measurement_step / stats->bin_length) - 1;
@@ -53,11 +61,13 @@ void stats_accumulate(Stats* stats, double sgn, double H_val, double H2_val) {
             stats->bin_mean_sgn[bin_idx] = stats->in_bin_sum_sgn / stats->bin_length;
             stats->bin_mean_H[bin_idx] = stats->in_bin_sum_H / stats->bin_length;
             stats->bin_mean_H2[bin_idx] = stats->in_bin_sum_H2 / stats->bin_length;
+            stats->bin_mean_q[bin_idx] = stats->in_bin_sum_q / stats->bin_length;
         }
         // Reset for the next bin
         stats->in_bin_sum_sgn = 0.0;
         stats->in_bin_sum_H = 0.0;
         stats->in_bin_sum_H2 = 0.0;
+        stats->in_bin_sum_q = 0.0;
     }
 }
 
@@ -101,12 +111,14 @@ void stats_finalize_and_print(const Stats* stats, const SimParams* params) {
     double var_H2_sgn = array_variance(stats->bin_mean_H2, stats->nbins, mean_H2_sgn);
     double cov_H2 = array_covariance(stats->bin_mean_sgn, stats->bin_mean_H2, stats->nbins, mean_sgn, mean_H2_sgn);
 
+    double mean_q_sgn = array_mean(stats->bin_mean_q, stats->nbins);
+    double var_q_sgn = array_variance(stats->bin_mean_q, stats->nbins, mean_q_sgn);
+    double cov_q = array_covariance(stats->bin_mean_sgn, stats->bin_mean_q, stats->nbins, mean_sgn, mean_q_sgn);
+
     printf("Average Sign: %.8f +/- %.8f\n\n", mean_sgn, stdev_sgn);
 
     // --- Final Observable <H> ---
-    // Formula from Appendix B of the paper (and datasummary.cpp)
     double final_H = (mean_H_sgn / mean_sgn) * (1.0 + var_sgn / (mean_sgn * mean_sgn)) - cov_H / (mean_sgn * mean_sgn);
-    
     double stdev_H_term1 = var_H_sgn / (mean_H_sgn * mean_H_sgn);
     double stdev_H_term2 = var_sgn / (mean_sgn * mean_sgn);
     double stdev_H_term3 = 2.0 * cov_H / (mean_H_sgn * mean_sgn);
@@ -118,7 +130,6 @@ void stats_finalize_and_print(const Stats* stats, const SimParams* params) {
 
     // --- Final Observable <H^2> ---
     double final_H2 = (mean_H2_sgn / mean_sgn) * (1.0 + var_sgn / (mean_sgn * mean_sgn)) - cov_H2 / (mean_sgn * mean_sgn);
-    
     double stdev_H2_term1 = var_H2_sgn / (mean_H2_sgn * mean_H2_sgn);
     double stdev_H2_term2 = var_sgn / (mean_sgn * mean_sgn);
     double stdev_H2_term3 = 2.0 * cov_H2 / (mean_H2_sgn * mean_sgn);
@@ -128,12 +139,23 @@ void stats_finalize_and_print(const Stats* stats, const SimParams* params) {
     printf("  Mean      = %.8f\n", final_H2);
     printf("  Std. Dev. = %.8f\n\n", stdev_H2);
 
+    // --- Final Observable <q> ---
+    double final_q = (mean_q_sgn / mean_sgn) * (1.0 + var_sgn / (mean_sgn * mean_sgn)) - cov_q / (mean_sgn * mean_sgn);
+    double stdev_q_term1 = var_q_sgn / (mean_q_sgn * mean_q_sgn);
+    double stdev_q_term2 = var_sgn / (mean_sgn * mean_sgn);
+    double stdev_q_term3 = 2.0 * cov_q / (mean_q_sgn * mean_sgn);
+    double stdev_q = fabs(final_q) * sqrt(fmax(0.0, stdev_q_term1 + stdev_q_term2 - stdev_q_term3));
+
+    printf("Observable <Mean q>:\n");
+    printf("  Mean      = %.8f\n", final_q);
+    printf("  Std. Dev. = %.8f\n\n", stdev_q);
+
+    printf("Observable <Max q>:\n");
+    printf("  Value     = %d\n\n", stats->max_q);
+
     // --- Derived Observable: Specific Heat ---
     if (final_H != 0 && final_H2 != 0) {
         double cv = (final_H2 - final_H * final_H) * params->BETA * params->BETA;
-        // Note: Calculating the error bar for a derived quantity like this rigorously
-        // requires the jackknife method (as in the C++ code) or error propagation formulas.
-        // For now, we just print the value.
         printf("Derived Observable (Specific Heat C_v):\n");
         printf("  Value     = %.8f\n", cv);
     }

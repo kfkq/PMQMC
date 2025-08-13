@@ -70,7 +70,7 @@ int main(int argc, char** argv) {
         double H_val = measure_H(state, &params);
         double H2_val = measure_H2(state, &params);
 
-        stats_accumulate(stats, sgn, H_val, H2_val);
+        stats_accumulate(stats, sgn, H_val, H2_val, state->q);
         // --- END NEW LOGIC ---
     }
 

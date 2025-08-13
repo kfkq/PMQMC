@@ -16,11 +16,16 @@ typedef struct {
     double in_bin_sum_sgn;
     double in_bin_sum_H;
     double in_bin_sum_H2;
+    double in_bin_sum_q;
 
     // Arrays of averages for each completed bin
     double* bin_mean_sgn;
     double* bin_mean_H;
     double* bin_mean_H2;
+    double* bin_mean_q;
+
+    // Other statistics
+    int max_q;
 
 } Stats;
 
@@ -45,7 +50,7 @@ void stats_free(Stats* stats);
  * @param H_val The measured value of <H>.
  * @param H2_val The measured value of <H^2>.
  */
-void stats_accumulate(Stats* stats, double sgn, double H_val, double H2_val);
+void stats_accumulate(Stats* stats, double sgn, double H_val, double H2_val, int q_val);
 
 /**
  * @brief Performs the final statistical analysis and prints the results.
